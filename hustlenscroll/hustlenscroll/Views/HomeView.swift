@@ -13,7 +13,7 @@ struct HomeView: View {
     ]
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 30) {
                 Text("Hustle & Scroll")
                     .font(.system(size: 40, weight: .bold))
@@ -39,16 +39,10 @@ struct HomeView: View {
                 
                 Spacer()
             }
-            .navigationBarHidden(true)
-            .background(
-                NavigationLink(
-                    destination: ContentView()
-                        .navigationBarHidden(true),
-                    isActive: $navigateToGame
-                ) {
-                    EmptyView()
-                }
-            )
+            .navigationDestination(isPresented: $navigateToGame) {
+                ContentView()
+                    .navigationBarBackButtonHidden(true)
+            }
         }
     }
     
@@ -81,4 +75,9 @@ struct CareerButton: View {
                 .cornerRadius(10)
         }
     }
+}
+
+#Preview {
+    HomeView()
+        .environmentObject(GameState())
 } 

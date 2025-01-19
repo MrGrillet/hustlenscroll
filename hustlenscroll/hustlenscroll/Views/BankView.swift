@@ -5,7 +5,7 @@ struct BankView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text("Financial Dashboard")
+            Text("Checking Account")
                 .font(.largeTitle)
                 .padding()
             
@@ -19,19 +19,6 @@ struct BankView: View {
             .padding()
             .background(Color.gray.opacity(0.1))
             .cornerRadius(10)
-            .padding()
-            
-            Button(action: {
-                gameState.advanceTurn()
-            }) {
-                Text("Advance Turn")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue)
-                    .cornerRadius(10)
-            }
             .padding()
             
             Spacer()

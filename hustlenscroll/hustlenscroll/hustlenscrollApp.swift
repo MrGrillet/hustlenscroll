@@ -1,17 +1,13 @@
-//
-//  hustlenscrollApp.swift
-//  hustlenscroll
-//
-//  Created by Peter Grillet on 19/01/2025.
-//
-
 import SwiftUI
 
 @main
-struct hustlenscrollApp: App {
+struct HustleAndScrollApp: App {
+    @StateObject private var gameState = GameState()
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()  // Start with HomeView instead of ContentView
+                .environmentObject(gameState)
         }
     }
-}
+} 

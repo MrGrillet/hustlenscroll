@@ -5,6 +5,8 @@ class GameState: ObservableObject {
     @Published var currentPlayer: Player
     @Published var events: [GameEvent]
     @Published var eventLog: [String]
+    @Published var posts: [Post] = []
+    @Published var profile: Profile?
     
     init() {
         // Initialize with default player
@@ -68,5 +70,11 @@ class GameState: ObservableObject {
     func startNewGame(with player: Player) {
         self.currentPlayer = player
         self.eventLog = []  // Clear any existing event log
+    }
+    
+    func updateProfile(name: String, role: String, goal: Profile.Goal) {
+        profile = Profile(name: name, role: role, goal: goal)
+        currentPlayer.name = name
+        currentPlayer.role = role
     }
 } 
