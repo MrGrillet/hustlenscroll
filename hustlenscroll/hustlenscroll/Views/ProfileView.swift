@@ -20,17 +20,38 @@ struct ProfileView: View {
                     Text(gameState.currentPlayer.role)
                         .font(.headline)
                         .foregroundColor(.gray)
-                    
-                    if let goal = gameState.profile?.goal {
-                        Text(goal.rawValue)
-                            .font(.subheadline)
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(20)
-                    }
                 }
                 .padding()
+                
+                // Goal Section
+                if let goal = gameState.playerGoal {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Life Goal")
+                            .font(.headline)
+                            .padding(.bottom, 4)
+                        
+                        Text(goal.title)
+                            .font(.title3)
+                            .bold()
+                        
+                        Text(goal.shortDescription)
+                            .foregroundColor(.gray)
+                        
+                        HStack {
+                            Text("Target:")
+                                .foregroundColor(.gray)
+                            Text("$\(Int(goal.price).formattedWithSeparator)")
+                                .bold()
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(15)
+                    .padding(.horizontal)
+                }
                 
                 // Bio Section
                 VStack(alignment: .leading, spacing: 10) {
@@ -38,7 +59,7 @@ struct ProfileView: View {
                         .font(.headline)
                         .padding(.bottom, 4)
                     
-                    Text("Aspiring tech professional focused on \(gameState.currentPlayer.role.lowercased()) roles. Working towards \(gameState.profile?.goal.description ?? "professional growth").")
+                    Text(gameState.currentPlayer.biography)
                         .foregroundColor(.gray)
                         .fixedSize(horizontal: false, vertical: true)
                 }

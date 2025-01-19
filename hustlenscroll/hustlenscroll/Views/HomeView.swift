@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var gameState: GameState
     @State private var navigateToGame = false
+    @State private var showingGoalSelection = false
     
     // Career options with their default salaries
     private let careers: [(role: String, salary: Double)] = [
@@ -43,20 +44,25 @@ struct HomeView: View {
                 ContentView()
                     .navigationBarBackButtonHidden(true)
             }
+            .sheet(isPresented: $showingGoalSelection) {
+                GoalSelectionView()
+                    .onDisappear {
+                        if gameState.playerGoal != nil {
+                            navigateToGame = true
+                        }
+                    }
+            }
         }
     }
     
     private func selectCareer(role: String, salary: Double) {
         let newPlayer = Player(
             name: "New Player",
-            role: role,
-            bankBalance: 1000,
-            monthlySalary: salary,
-            monthlyExpenses: 2000
+            role: role
         )
         
         gameState.startNewGame(with: newPlayer)
-        navigateToGame = true
+        showingGoalSelection = true
     }
 }
 
