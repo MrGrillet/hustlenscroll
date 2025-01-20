@@ -20,7 +20,7 @@ struct BankView: View {
                         
                         // Checking Account
                         NavigationLink {
-                            AccountDetailView(accountName: "Checking Account", accountType: .checking)
+                            AccountDetailView(gameState: gameState, accountType: .checking)
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Checking Account")
@@ -39,7 +39,7 @@ struct BankView: View {
                         
                         // Savings Account
                         NavigationLink {
-                            AccountDetailView(accountName: "Savings Account", accountType: .savings)
+                            AccountDetailView(gameState: gameState, accountType: .savings)
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Savings Account")
@@ -48,6 +48,8 @@ struct BankView: View {
                                     .padding(.bottom, 5)
                                 
                                 InfoRow(title: "Balance", value: String(format: "$%.2f", gameState.currentPlayer.savingsBalance))
+                                InfoRow(title: "Monthly Income", value: String(format: "$%.2f", gameState.currentPlayer.monthlySalary))
+                                InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", gameState.currentPlayer.monthlyExpenses))
                             }
                         }
                         .padding()
@@ -56,7 +58,7 @@ struct BankView: View {
                         
                         // Credit Card
                         NavigationLink {
-                            AccountDetailView(accountName: "Credit Card", accountType: .creditCard)
+                            AccountDetailView(gameState: gameState, accountType: .creditCard)
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Credit Card")
@@ -75,10 +77,75 @@ struct BankView: View {
                     }
                     .padding(.horizontal)
                     
+                    // Investment Accounts Section
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("Investment Accounts")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                            .padding(.horizontal)
+                        
+                        // Crypto Portfolio
+                        NavigationLink {
+                            PortfolioView(portfolioType: .crypto)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Crypto Portfolio")
+                                    .font(.title3)
+                                    .bold()
+                                    .padding(.bottom, 5)
+                                
+                                InfoRow(title: "Total Value", value: String(format: "$%.2f", gameState.cryptoPortfolio.totalValue))
+                                InfoRow(title: "24h Change", value: String(format: "$%.2f", gameState.cryptoPortfolio.totalProfitLoss))
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(10)
+                        
+                        // Equities Portfolio
+                        NavigationLink {
+                            PortfolioView(portfolioType: .equities)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Equities Portfolio")
+                                    .font(.title3)
+                                    .bold()
+                                    .padding(.bottom, 5)
+                                
+                                InfoRow(title: "Total Value", value: String(format: "$%.2f", gameState.equityPortfolio.totalValue))
+                                InfoRow(title: "24h Change", value: String(format: "$%.2f", gameState.equityPortfolio.totalProfitLoss))
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(10)
+                        
+                        // Startups Portfolio
+                        if !gameState.activeBusinesses.isEmpty {
+                            NavigationLink {
+                                StartupsPortfolioView()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Startup Investments")
+                                        .font(.title3)
+                                        .bold()
+                                        .padding(.bottom, 5)
+                                    
+                                    InfoRow(title: "Active Startups", value: "\(gameState.activeBusinesses.count)")
+                                    InfoRow(title: "Monthly Income", value: String(format: "$%.2f", gameState.totalMonthlyBusinessIncome))
+                                }
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal)
+                    
                     // Business Accounts Section (if exists)
                     if gameState.hasStartup {
                         NavigationLink {
-                            AccountDetailView(accountName: "TechVenture Labs", accountType: .business)
+                            AccountDetailView(gameState: gameState, accountType: .business)
                         } label: {
                             VStack(alignment: .leading, spacing: 15) {
                                 Text("Business Accounts")
@@ -107,21 +174,6 @@ struct BankView: View {
                     Spacer()
                 }
             }
-        }
-    }
-}
-
-struct InfoRow: View {
-    let title: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .foregroundColor(.gray)
-            Spacer()
-            Text(value)
-                .bold()
         }
     }
 } 

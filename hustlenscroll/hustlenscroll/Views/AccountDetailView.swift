@@ -1,150 +1,163 @@
 import SwiftUI
 
-struct Transaction: Identifiable {
-    let id = UUID()
-    let date: Date
-    let description: String
-    let amount: Double
-    let isIncome: Bool
+enum AccountType: String {
+    case checking = "Checking Account"
+    case savings = "Savings Account"
+    case creditCard = "Credit Card"
+    case business = "Business Account"
 }
 
 struct AccountDetailView: View {
-    let accountName: String
+    @ObservedObject var gameState: GameState
     let accountType: AccountType
-    @EnvironmentObject var gameState: GameState
-    
-    enum AccountType {
-        case checking
-        case savings
-        case creditCard
-        case business
-    }
-    
-    private var filteredTransactions: [Transaction] {
-        switch accountType {
-        case .checking:
-            return gameState.transactions.filter { 
-                !$0.description.contains("Credit Card") && 
-                !$0.description.contains("Transfer to Savings")
-            }
-        case .savings:
-            return gameState.transactions.filter {
-                $0.description.contains("Transfer to Savings") ||
-                $0.description.contains("Savings Interest")
-            }
-        case .creditCard:
-            return gameState.transactions.filter { $0.description.contains("Credit Card") }
-        case .business:
-            return gameState.businessTransactions
-        }
-    }
     
     var body: some View {
-        List {
-            ForEach(groupedTransactions.keys.sorted().reversed(), id: \.self) { month in
-                Section(header: Text(formatMonth(month))) {
-                    // Income first
-                    ForEach(groupedTransactions[month]?.filter { $0.isIncome } ?? []) { transaction in
-                        TransactionRow(transaction: transaction)
-                    }
-                    
-                    // Then expenses
-                    ForEach(groupedTransactions[month]?.filter { !$0.isIncome } ?? []) { transaction in
-                        TransactionRow(transaction: transaction)
-                    }
-                    
-                    // Monthly Summary
-                    if let monthlyTransactions = groupedTransactions[month] {
-                        TransactionSummaryRow(transactions: monthlyTransactions)
-                    }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                ForEach(monthlyTransactions, id: \.month) { monthGroup in
+                    MonthlyTransactionCard(monthGroup: monthGroup)
                 }
             }
+            .padding()
         }
-        .navigationTitle(accountName)
-        .onAppear {
-            if gameState.transactions.isEmpty {
-                // Add initial month of transactions if none exist
-                gameState.recordMonthlyTransactions(for: Calendar.current.date(byAdding: .month, value: -1, to: Date())!)
-            }
-        }
+        .navigationTitle(accountType.rawValue)
     }
     
-    private var groupedTransactions: [String: [Transaction]] {
-        Dictionary(grouping: filteredTransactions) { transaction in
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM"
-            return formatter.string(from: transaction.date)
+    // Group transactions by month and year
+    private var monthlyTransactions: [MonthlyTransactions] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: gameState.transactions) { transaction in
+            calendar.startOfMonth(for: transaction.date)
         }
-    }
-    
-    private func formatMonth(_ monthKey: String) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM"
-        guard let date = formatter.date(from: monthKey) else { return monthKey }
         
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: date)
+        return grouped.map { date, transactions in
+            MonthlyTransactions(month: date, transactions: transactions)
+        }.sorted { $0.month > $1.month }
     }
 }
 
-struct TransactionRow: View {
-    let transaction: Transaction
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(transaction.description)
-                    .font(.headline)
-                Text(formatDate(transaction.date))
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            
-            Spacer()
-            
-            Text(formatAmount(transaction.amount, isIncome: transaction.isIncome))
-                .foregroundColor(transaction.isIncome ? .green : .primary)
-        }
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
-    }
-    
-    private func formatAmount(_ amount: Double, isIncome: Bool) -> String {
-        let prefix = isIncome ? "+" : "-"
-        return "\(prefix)$\(String(format: "%.2f", abs(amount)))"
+// Helper to get start of month
+extension Calendar {
+    func startOfMonth(for date: Date) -> Date {
+        let components = dateComponents([.year, .month], from: date)
+        return self.date(from: components) ?? date
     }
 }
 
-struct TransactionSummaryRow: View {
+// Model for grouped monthly transactions
+struct MonthlyTransactions {
+    let month: Date
     let transactions: [Transaction]
     
-    private var totalIncome: Double {
-        transactions.filter { $0.isIncome }.reduce(0) { $0 + $1.amount }
+    var income: [Transaction] {
+        transactions.filter { $0.isIncome }
+            .sorted { $0.date > $1.date }
     }
     
-    private var totalExpenses: Double {
-        transactions.filter { !$0.isIncome }.reduce(0) { $0 + $1.amount }
+    var expenses: [Transaction] {
+        transactions.filter { !$0.isIncome }
+            .sorted { $0.date > $1.date }
     }
+    
+    var totalIncome: Double {
+        income.reduce(0) { $0 + abs($1.amount) }
+    }
+    
+    var totalExpenses: Double {
+        expenses.reduce(0) { $0 + abs($1.amount) }
+    }
+    
+    var netAmount: Double {
+        totalIncome - totalExpenses
+    }
+}
+
+// Card view for monthly transactions
+struct MonthlyTransactionCard: View {
+    let monthGroup: MonthlyTransactions
     
     var body: some View {
-        VStack(spacing: 8) {
-            Divider()
+        VStack(alignment: .leading, spacing: 12) {
+            // Month header with net amount
             HStack {
-                Text("Monthly Summary")
-                    .font(.headline)
+                Text(monthGroup.month, format: .dateTime.month(.wide).year())
+                    .font(.title2)
+                    .fontWeight(.bold)
                 Spacer()
-                VStack(alignment: .trailing) {
-                    Text("Income: +$\(String(format: "%.2f", totalIncome))")
-                        .foregroundColor(.green)
-                    Text("Expenses: -$\(String(format: "%.2f", totalExpenses))")
-                        .foregroundColor(.primary)
-                }
+                Text(monthGroup.netAmount, format: .currency(code: "USD"))
+                    .font(.headline)
+                    .foregroundColor(monthGroup.netAmount >= 0 ? .green : .red)
             }
-            .padding(.top, 8)
+            
+            Divider()
+            
+            // Income Section
+            if !monthGroup.income.isEmpty {
+                Text("Income")
+                    .font(.headline)
+                    .foregroundColor(.gray)
+                    .padding(.top, 4)
+                
+                ForEach(monthGroup.income) { transaction in
+                    HStack {
+                        Text(transaction.description)
+                        Spacer()
+                        Text(abs(transaction.amount), format: .currency(code: "USD"))
+                            .foregroundColor(.green)
+                    }
+                    .padding(.vertical, 2)
+                }
+                
+                HStack {
+                    Text("Total Income")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Text(monthGroup.totalIncome, format: .currency(code: "USD"))
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
+                }
+                .padding(.top, 4)
+            }
+            
+            // Expenses Section
+            if !monthGroup.expenses.isEmpty {
+                Text("Expenses")
+                    .font(.headline)
+                    .foregroundColor(.gray)
+                    .padding(.top, 8)
+                
+                ForEach(monthGroup.expenses) { transaction in
+                    HStack {
+                        Text(transaction.description)
+                        Spacer()
+                        Text(abs(transaction.amount), format: .currency(code: "USD"))
+                            .foregroundColor(.red)
+                    }
+                    .padding(.vertical, 2)
+                }
+                
+                HStack {
+                    Text("Total Expenses")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Text(monthGroup.totalExpenses, format: .currency(code: "USD"))
+                        .fontWeight(.semibold)
+                        .foregroundColor(.red)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding()
+        .background(Color(uiColor: .systemBackground))
+        .cornerRadius(12)
+        .shadow(radius: 2)
+    }
+}
+
+struct AccountDetailView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            AccountDetailView(gameState: GameState(), accountType: .checking)
         }
     }
 } 

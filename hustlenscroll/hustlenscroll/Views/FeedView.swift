@@ -2,12 +2,12 @@ import SwiftUI
 
 struct FeedView: View {
     @EnvironmentObject var gameState: GameState
-    @State private var posts: [Post] = []
+    @State private var isRefreshing = false
     
     var body: some View {
         NavigationView {
             List {
-                if posts.isEmpty {
+                if gameState.posts.isEmpty {
                     VStack {
                         Spacer()
                             .frame(height: 100)
@@ -28,7 +28,7 @@ struct FeedView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 } else {
-                    ForEach(posts) { post in
+                    ForEach(gameState.posts) { post in
                         PostView(post: post)
                     }
                 }
@@ -36,53 +36,9 @@ struct FeedView: View {
             .listStyle(.plain)
             .navigationTitle("Feed")
             .refreshable {
-                await refreshFeed()
+                gameState.advanceDay()
             }
         }
-    }
-    
-    private func refreshFeed() async {
-        // Simulate network delay
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        // Generate new posts
-        var newPosts: [Post] = []
-        
-        // Add 1-2 game event posts
-        if let eventPost = Post.gameEventPosts.randomElement() {
-            newPosts.append(eventPost)
-        }
-        
-        // Add 4-6 filler posts
-        let fillerCount = Int.random(in: 4...6)
-        let shuffledFillers = Post.fillerPosts.shuffled()
-        newPosts.append(contentsOf: shuffledFillers.prefix(fillerCount))
-        
-        // Shuffle all posts
-        posts = newPosts.shuffled()
-        
-        // Trigger game state update
-        gameState.advanceTurn()
-    }
-}
-
-struct PostView: View {
-    let post: Post
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(post.userHandle)
-                .font(.headline)
-                .foregroundColor(post.isGameEvent ? .blue : .gray)
-            
-            Text(post.body)
-                .font(.body)
-            
-            Text("2m")  // Simplified timestamp
-                .font(.caption)
-                .foregroundColor(.gray)
-        }
-        .padding(.vertical, 8)
     }
 }
 

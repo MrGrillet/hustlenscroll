@@ -1,35 +1,109 @@
 import Foundation
 
 struct Post: Identifiable {
-    let id: UUID = UUID()
-    let userHandle: String
-    let body: String
-    let timestamp: Date = Date()
-    let isGameEvent: Bool
+    let id: UUID
+    let author: String
+    let role: String
+    let content: String
+    let timestamp: Date
+    let isSponsored: Bool
+    let linkedOpportunity: BusinessOpportunity?
+    let linkedInvestment: Asset?
+    
+    var userHandle: String {
+        "@\(author.replacingOccurrences(of: " ", with: ""))"
+    }
+    
+    var body: String {
+        content
+    }
+    
+    var isGameEvent: Bool {
+        linkedOpportunity != nil || linkedInvestment != nil
+    }
+    
+    init(id: UUID = UUID(), 
+         author: String, 
+         role: String, 
+         content: String, 
+         timestamp: Date = Date(), 
+         isSponsored: Bool = false, 
+         linkedOpportunity: BusinessOpportunity? = nil,
+         linkedInvestment: Asset? = nil) {
+        self.id = id
+        self.author = author
+        self.role = role
+        self.content = content
+        self.timestamp = timestamp
+        self.isSponsored = isSponsored
+        self.linkedOpportunity = linkedOpportunity
+        self.linkedInvestment = linkedInvestment
+    }
+    
+    static var example: Post {
+        Post(
+            author: "CryptoTrader",
+            role: "Investment Advisor",
+            content: "Hot investment opportunity! Bitcoin is trending! 🚀",
+            isSponsored: true,
+            linkedInvestment: Asset(
+                symbol: "BTC",
+                name: "Bitcoin",
+                quantity: 0,
+                currentPrice: 45000,
+                purchasePrice: 45000,
+                type: .crypto
+            )
+        )
+    }
     
     static let fillerPosts = [
-        Post(userHandle: "@techBro", body: "Just deployed my first blockchain app! 🚀 #Web3", isGameEvent: false),
-        Post(userHandle: "@codeCrafter", body: "Why do programmers prefer dark mode? Because light attracts bugs! 😅", isGameEvent: false),
-        Post(userHandle: "@startupGuru", body: "Remember: failing fast is just another way of saying 'learning quickly' 💡", isGameEvent: false),
-        Post(userHandle: "@devLife", body: "Coffee.exe has stopped working. Please restart programmer.", isGameEvent: false),
-        Post(userHandle: "@techNews", body: "New JavaScript framework just dropped! Time to rewrite everything! 🔄", isGameEvent: false),
-        Post(userHandle: "@productPerson", body: "Hot take: JIRA tickets are just fancy todo lists 📝", isGameEvent: false),
-        Post(userHandle: "@debugQueen", body: "Found a bug in production. It's not a bug, it's an undocumented feature! ✨", isGameEvent: false),
-        Post(userHandle: "@designerDude", body: "Just spent 3 hours picking between two slightly different shades of blue 🎨", isGameEvent: false)
+        Post(id: UUID(), author: "techBro", role: "Developer", content: "Just deployed my first blockchain app! 🚀 #Web3", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil),
+        Post(id: UUID(), author: "codeCrafter", role: "Senior Dev", content: "Why do programmers prefer dark mode? Because light attracts bugs! 😅", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil),
+        Post(id: UUID(), author: "startupGuru", role: "Founder", content: "Remember: failing fast is just another way of saying 'learning quickly' 💡", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil),
+        Post(id: UUID(), author: "devLife", role: "Developer", content: "Coffee.exe has stopped working. Please restart programmer.", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil),
+        Post(id: UUID(), author: "techNews", role: "Tech Journalist", content: "New JavaScript framework just dropped! Time to rewrite everything! 🔄", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil),
+        Post(id: UUID(), author: "productPerson", role: "PM", content: "Hot take: JIRA tickets are just fancy todo lists 📝", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil),
+        Post(id: UUID(), author: "debugQueen", role: "Lead Dev", content: "Found a bug in production. It's not a bug, it's an undocumented feature! ✨", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil),
+        Post(id: UUID(), author: "designerDude", role: "UI Designer", content: "Just spent 3 hours picking between two slightly different shades of blue 🎨", timestamp: Date(), isSponsored: false, linkedOpportunity: nil, linkedInvestment: nil)
     ]
     
     static let gameEventPosts = [
         // Opportunities
-        Post(userHandle: "@recruiterPro", body: "Looking for a talented developer for a contract role! DM for details 💼 #hiring", isGameEvent: true),
-        Post(userHandle: "@startupCEO", body: "Need a freelance developer for a quick project. Paying well! 💰", isGameEvent: true),
-        Post(userHandle: "@techConf", body: "Early bird tickets for DevCon 2024 are now available! 🎟️", isGameEvent: true),
+        Post(id: UUID(), author: "recruiterPro", role: "Tech Recruiter", content: "Looking for a talented developer for a contract role! DM for details 💼 #hiring", timestamp: Date(), isSponsored: true, linkedOpportunity: BusinessOpportunity(
+            title: "Contract Developer Role",
+            description: "6-month contract for experienced developer",
+            source: .customer,
+            opportunityType: .startup,
+            monthlyRevenue: 12000,
+            monthlyExpenses: 2000,
+            setupCost: 0,
+            potentialSaleMultiple: 1.0
+        ), linkedInvestment: nil),
         
-        // Unwanted Expenses
-        Post(userHandle: "@techSupport", body: "Major security vulnerability found in popular dev tools. Update required! 🔒", isGameEvent: true),
-        Post(userHandle: "@cloudProvider", body: "Scheduled maintenance fee increase starting next month 📈", isGameEvent: true),
+        Post(id: UUID(), author: "startupCEO", role: "Founder", content: "Need a freelance developer for a quick project. Paying well! 💰", timestamp: Date(), isSponsored: true, linkedOpportunity: BusinessOpportunity(
+            title: "Freelance Dev Project",
+            description: "3-month project for MVP development",
+            source: .customer,
+            opportunityType: .startup,
+            monthlyRevenue: 8000,
+            monthlyExpenses: 1000,
+            setupCost: 2000,
+            potentialSaleMultiple: 1.5
+        ), linkedInvestment: nil),
         
         // Trending Topics
-        Post(userHandle: "@techTrends", body: "New programming language taking the industry by storm! Time to learn? 📚", isGameEvent: true),
-        Post(userHandle: "@marketWatch", body: "Tech stocks hitting all-time highs! 📊", isGameEvent: true)
+        Post(id: UUID(), author: "techTrends", role: "Tech Analyst", content: "New programming language taking the industry by storm! Time to learn? 📚", timestamp: Date(), isSponsored: true, linkedOpportunity: BusinessOpportunity(
+            title: "New Tech Training",
+            description: "Investment in new programming language skills",
+            source: .socialMedia,
+            opportunityType: .startup,
+            monthlyRevenue: 2000,
+            monthlyExpenses: 500,
+            setupCost: 5000,
+            potentialSaleMultiple: 2.0
+        ), linkedInvestment: nil),
+        
+        Post(id: UUID(), author: "marketWatch", role: "Market Analyst", content: "Tech stocks hitting all-time highs! 📊", timestamp: Date(), isSponsored: true, linkedOpportunity: nil, linkedInvestment: nil)
     ]
 } 

@@ -1,36 +1,51 @@
 import Foundation
 
-struct Goal: Identifiable {
-    let id = UUID()
-    let title: String
-    let shortDescription: String
-    let longDescription: String
-    let price: Double
+enum Goal: String, Identifiable, CaseIterable, Equatable, Codable {
+    case lamborghini
+    case mansion
+    case yacht
+    case retirement
+    case startup
     
-    static let allGoals = [
-        Goal(
-            title: "Tech Startup Exit",
-            shortDescription: "Build and sell your own tech company",
-            longDescription: "Create a successful tech startup from the ground up, scale it to significant market value, and achieve a profitable exit through acquisition or IPO. This path requires building a innovative product, assembling a strong team, and navigating the challenges of startup growth.",
-            price: 1_000_000
-        ),
-        Goal(
-            title: "Real Estate Empire",
-            shortDescription: "Build a portfolio of premium properties",
-            longDescription: "Develop a diverse real estate portfolio including residential and commercial properties. Generate passive income through property management and appreciation, while building long-term wealth through strategic acquisitions and development.",
-            price: 2_000_000
-        ),
-        Goal(
-            title: "Early Retirement",
-            shortDescription: "Achieve financial independence",
-            longDescription: "Accumulate enough wealth to retire early with a comfortable lifestyle. This requires building a diverse investment portfolio, maximizing savings, and creating multiple streams of passive income to support your desired lifestyle without active work.",
-            price: 3_000_000
-        ),
-        Goal(
-            title: "Angel Investor",
-            shortDescription: "Invest in promising startups",
-            longDescription: "Become an influential angel investor in the tech ecosystem. Use your capital to fund promising startups while mentoring the next generation of entrepreneurs. Build a portfolio of investments that could yield significant returns while shaping the future of technology.",
-            price: 5_000_000
-        )
-    ]
+    var id: String { title }
+    
+    var title: String {
+        switch self {
+        case .lamborghini: return "Lamborghini"
+        case .mansion: return "Mansion"
+        case .yacht: return "Yacht"
+        case .retirement: return "Early Retirement"
+        case .startup: return "Successful Startup"
+        }
+    }
+    
+    var shortDescription: String {
+        switch self {
+        case .lamborghini: return "Own your dream supercar"
+        case .mansion: return "Live in luxury"
+        case .yacht: return "Sail the world in style"
+        case .retirement: return "Financial freedom by 40"
+        case .startup: return "Build a billion-dollar company"
+        }
+    }
+    
+    var longDescription: String {
+        switch self {
+        case .lamborghini: return "The ultimate symbol of success - a brand new Lamborghini"
+        case .mansion: return "A luxurious mansion in the most exclusive neighborhood"
+        case .yacht: return "A private yacht to explore the world's oceans"
+        case .retirement: return "Enough passive income to retire early and live comfortably"
+        case .startup: return "Build and sell a successful startup"
+        }
+    }
+    
+    var price: Double {
+        switch self {
+        case .lamborghini: return 500_000
+        case .mansion: return 5_000_000
+        case .yacht: return 10_000_000
+        case .retirement: return 3_000_000
+        case .startup: return 1_000_000_000
+        }
+    }
 } 

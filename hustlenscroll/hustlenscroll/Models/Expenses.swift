@@ -1,6 +1,6 @@
 import Foundation
 
-struct Expenses {
+struct Expenses: Codable {
     var rent: Double
     var cellAndInternet: Double
     var childCare: Double
@@ -17,60 +17,15 @@ struct Expenses {
     static func getExpensesForRole(_ role: String) -> Expenses {
         switch role {
         case "Junior Developer":
-            return Expenses(
-                rent: 2000,
-                cellAndInternet: 150,
-                childCare: 0,
-                studentLoans: 400,
-                creditCard: 200,
-                groceries: 500,
-                carNote: 350,
-                retail: 200
-            )
+            return Expenses(rent: 1000, cellAndInternet: 200, childCare: 0, studentLoans: 0, creditCard: 0, groceries: 500, carNote: 0, retail: 0)
         case "Senior Developer":
-            return Expenses(
-                rent: 2500,
-                cellAndInternet: 150,
-                childCare: 0,
-                studentLoans: 600,
-                creditCard: 300,
-                groceries: 600,
-                carNote: 500,
-                retail: 400
-            )
+            return Expenses(rent: 1500, cellAndInternet: 300, childCare: 0, studentLoans: 0, creditCard: 0, groceries: 700, carNote: 0, retail: 0)
         case "Product Manager":
-            return Expenses(
-                rent: 2800,
-                cellAndInternet: 150,
-                childCare: 0,
-                studentLoans: 800,
-                creditCard: 400,
-                groceries: 700,
-                carNote: 600,
-                retail: 500
-            )
+            return Expenses(rent: 1500, cellAndInternet: 300, childCare: 0, studentLoans: 0, creditCard: 0, groceries: 700, carNote: 0, retail: 0)
         case "Designer":
-            return Expenses(
-                rent: 2200,
-                cellAndInternet: 150,
-                childCare: 0,
-                studentLoans: 500,
-                creditCard: 250,
-                groceries: 550,
-                carNote: 400,
-                retail: 300
-            )
+            return Expenses(rent: 1500, cellAndInternet: 300, childCare: 0, studentLoans: 0, creditCard: 0, groceries: 700, carNote: 0, retail: 0)
         default:
-            return Expenses(
-                rent: 2000,
-                cellAndInternet: 150,
-                childCare: 0,
-                studentLoans: 400,
-                creditCard: 200,
-                groceries: 500,
-                carNote: 350,
-                retail: 200
-            )
+            return Expenses(rent: 1000, cellAndInternet: 200, childCare: 0, studentLoans: 0, creditCard: 0, groceries: 500, carNote: 0, retail: 0)
         }
     }
 } 

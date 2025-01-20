@@ -1,19 +1,31 @@
 import Foundation
 
-struct Player: Identifiable {
+struct Player: Identifiable, Codable {
     let id: UUID
     var name: String
     var role: String
-    var bankBalance: Double
-    var savingsBalance: Double
-    var monthlySalary: Double
-    var monthlyExpenses: Double
+    var handle: String?
+    var bankBalance: Double = 10000
+    var savingsBalance: Double = 0
+    var monthlySalary: Double = 8000
+    var monthlyExpenses: Double = 5000
     var expenses: Expenses
     var biography: String
     
     private var monthlyCashflow: Double {
         monthlySalary - monthlyExpenses
     }
+    
+    static let availableRoles = [
+        "Software Developer",
+        "Product Manager",
+        "UX Designer",
+        "Data Scientist",
+        "DevOps Engineer",
+        "Mobile Developer",
+        "Full Stack Developer",
+        "AI Engineer"
+    ]
     
     static func getSalaryForRole(_ role: String) -> Double {
         switch role {
@@ -33,11 +45,13 @@ struct Player: Identifiable {
     init(id: UUID = UUID(),
          name: String,
          role: String,
+         handle: String? = nil,
          monthlySalary: Double? = nil,
          monthlyExpenses: Double? = nil) {
         self.id = id
         self.name = name
         self.role = role
+        self.handle = handle
         self.monthlySalary = monthlySalary ?? Player.getSalaryForRole(role)
         self.expenses = Expenses.getExpensesForRole(role)
         self.monthlyExpenses = monthlyExpenses ?? self.expenses.total

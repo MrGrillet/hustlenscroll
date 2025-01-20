@@ -18,7 +18,7 @@ struct GoalSelectionView: View {
             
             ScrollView {
                 LazyVGrid(columns: [GridItem(.flexible())], spacing: 16) {
-                    ForEach(Goal.allGoals) { goal in
+                    ForEach(Goal.allCases) { goal in
                         GoalCard(goal: goal)
                             .onTapGesture {
                                 selectedGoal = goal
@@ -31,10 +31,7 @@ struct GoalSelectionView: View {
         }
         .sheet(isPresented: $showingGoalDetail) {
             if let goal = selectedGoal {
-                GoalDetailView(goal: goal) { selectedGoal in
-                    gameState.setPlayerGoal(selectedGoal)
-                    dismiss()
-                }
+                GoalDetailView(goal: goal, parentDismiss: dismiss)
             }
         }
     }
@@ -67,8 +64,9 @@ struct GoalCard: View {
 
 struct GoalDetailView: View {
     let goal: Goal
-    let onSelect: (Goal) -> Void
+    let parentDismiss: DismissAction
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var gameState: GameState
     
     var body: some View {
         NavigationView {
@@ -102,7 +100,15 @@ struct GoalDetailView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Select") {
-                        onSelect(goal)
+                        // Set the goal first
+                        gameState.setPlayerGoal(goal)
+                        
+                        // Give the state a moment to update
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Then dismiss both sheets
+                            dismiss()
+                            parentDismiss()
+                        }
                     }
                     .bold()
                 }

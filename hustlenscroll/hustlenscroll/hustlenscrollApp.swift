@@ -6,7 +6,7 @@ struct HustleAndScrollApp: App {
     
     var body: some Scene {
         WindowGroup {
-            HomeView()  // Start with HomeView instead of ContentView
+            ContentView()
                 .environmentObject(gameState)
         }
     }

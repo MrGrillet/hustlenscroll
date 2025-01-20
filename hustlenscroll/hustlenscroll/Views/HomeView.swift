@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var gameState: GameState
-    @State private var navigateToGame = false
     @State private var showingGoalSelection = false
     
     // Career options with their default salaries
@@ -40,28 +39,23 @@ struct HomeView: View {
                 
                 Spacer()
             }
-            .navigationDestination(isPresented: $navigateToGame) {
-                ContentView()
-                    .navigationBarBackButtonHidden(true)
-            }
-            .sheet(isPresented: $showingGoalSelection) {
-                GoalSelectionView()
-                    .onDisappear {
-                        if gameState.playerGoal != nil {
-                            navigateToGame = true
-                        }
-                    }
-            }
+        }
+        .fullScreenCover(isPresented: $showingGoalSelection) {
+            GoalSelectionView()
         }
     }
     
     private func selectCareer(role: String, salary: Double) {
-        let newPlayer = Player(
-            name: "New Player",
-            role: role
+        gameState.currentPlayer = Player(
+            name: "Player",
+            role: role,
+            monthlySalary: salary
         )
         
-        gameState.startNewGame(with: newPlayer)
+        // Save the state
+        gameState.saveState()
+        
+        // Show goal selection
         showingGoalSelection = true
     }
 }

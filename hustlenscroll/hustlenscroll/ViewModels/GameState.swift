@@ -17,17 +17,113 @@ class GameState: ObservableObject {
     @Published var businessTransactions: [Transaction] = []
     @Published var businessName: String = ""
     @Published var businessProfitLoss: Double = 0
-    @Published var playerGoal: Goal?
+    @Published var playerGoal: Goal? {
+        didSet {
+            objectWillChange.send()  // Ensure UI updates
+        }
+    }
+    @Published var messages: [Message] = [] {
+        didSet {
+            objectWillChange.send()  // Ensure UI updates
+        }
+    }
+    @Published var cryptoPortfolio = CryptoPortfolio(assets: [])
+    @Published var equityPortfolio = EquityPortfolio(assets: [])
+    @Published var activeBusinesses: [BusinessOpportunity] = []
+    @Published var totalMonthlyBusinessIncome: Double = 0
+    @Published var canQuitJob: Bool = false
+    @Published var hasQuitJob: Bool = false
+    @Published var activeTrendingTopics: [TrendingTopic] = []
+    @Published var lastRecordedMonth: Date?
+    
+    private func createInitialMentorMessages() -> [Message] {
+        return [
+            Message(
+                senderId: "mentor",
+                senderName: "David Chen",
+                senderRole: "Startup Advisor",
+                timestamp: Date().addingTimeInterval(-300),
+                content: "👋 Hey there! I'm David, and I'll be your mentor on your journey from employee to entrepreneur. I've helped dozens of developers like you build successful businesses.",
+                opportunity: nil,
+                isRead: false
+            ),
+            Message(
+                senderId: "mentor",
+                senderName: "David Chen",
+                senderRole: "Startup Advisor",
+                timestamp: Date().addingTimeInterval(-240),
+                content: "Your goal is to achieve financial independence. You can do this in two phases:\n\n1️⃣ First, build enough side income to quit your job\n2️⃣ Then, grow your investments to achieve your ultimate goal",
+                opportunity: nil,
+                isRead: false
+            ),
+            Message(
+                senderId: "mentor",
+                senderName: "David Chen",
+                senderRole: "Startup Advisor",
+                timestamp: Date().addingTimeInterval(-180),
+                content: "You can quit your job when your monthly passive income exceeds your monthly expenses. This can come from:\n\n📱 Side projects\n💼 Consulting work\n📈 Investment returns",
+                opportunity: nil,
+                isRead: false
+            ),
+            Message(
+                senderId: "mentor",
+                senderName: "David Chen",
+                senderRole: "Startup Advisor",
+                timestamp: Date().addingTimeInterval(-120),
+                content: "To get started:\n\n1. Pull down the Feed to refresh and see opportunities\n2. Look for both small and large opportunities\n3. Check your Messages for details when something interests you\n4. Track your progress in the Bank tab",
+                opportunity: nil,
+                isRead: false
+            ),
+            Message(
+                senderId: "mentor",
+                senderName: "David Chen",
+                senderRole: "Startup Advisor",
+                timestamp: Date().addingTimeInterval(-60),
+                content: "I'll be here to guide you along the way. Good luck! 🚀\n\nP.S. First step: Pull down the Feed to start looking for opportunities!",
+                opportunity: nil,
+                isRead: false
+            )
+        ]
+    }
     
     init() {
-        // Initialize with default player
-        self.currentPlayer = Player(
-            name: "John Doe",
-            role: "Software Developer"
-        )
-        
-        // Initialize empty event log
-        self.eventLog = []
+        if let savedData = UserDefaults.standard.data(forKey: "gameState"),
+           let decoded = try? JSONDecoder().decode(SavedGameState.self, from: savedData) {
+            self.currentPlayer = decoded.player
+            self.playerGoal = decoded.goal
+            self.transactions = decoded.transactions
+            self.messages = decoded.messages
+            self.hasStartup = decoded.hasStartup
+            self.startupBalance = decoded.startupBalance
+            self.businessTransactions = decoded.businessTransactions
+            self.businessName = decoded.businessName
+            self.cryptoPortfolio = decoded.cryptoPortfolio
+            self.equityPortfolio = decoded.equityPortfolio
+            self.activeBusinesses = decoded.activeBusinesses
+            self.totalMonthlyBusinessIncome = decoded.totalMonthlyBusinessIncome
+            self.canQuitJob = decoded.canQuitJob
+            self.hasQuitJob = decoded.hasQuitJob
+            self.profile = decoded.profile
+            self.lastRecordedMonth = decoded.lastRecordedMonth
+            self.events = []
+            self.eventLog = []
+            
+            // Only add initial messages if we don't have any
+            if messages.isEmpty {
+                self.messages = createInitialMentorMessages()
+            }
+        } else {
+            // Initialize with default values for a new game
+            self.currentPlayer = Player(name: "", role: "")
+            self.events = []
+            self.eventLog = []
+            self.playerGoal = nil
+            self.profile = nil
+            self.lastRecordedMonth = nil
+            
+            // Add initial messages from mentor
+            self.messages = createInitialMentorMessages()
+        }
         
         // Initialize sample events
         self.events = [
@@ -60,6 +156,70 @@ class GameState: ObservableObject {
                 }
             )
         ]
+        
+        // Initialize empty portfolios
+        self.cryptoPortfolio = CryptoPortfolio(assets: [])
+        self.equityPortfolio = EquityPortfolio(assets: [])
+        
+        // Add initial filler posts
+        self.posts = SampleContent.generateFillerPosts(count: 50)
+    }
+    
+    func saveState() {
+        let state = SavedGameState(
+            player: currentPlayer,
+            goal: playerGoal,
+            transactions: transactions,
+            messages: messages,
+            hasStartup: hasStartup,
+            startupBalance: startupBalance,
+            businessTransactions: businessTransactions,
+            businessName: businessName,
+            cryptoPortfolio: cryptoPortfolio,
+            equityPortfolio: equityPortfolio,
+            activeBusinesses: activeBusinesses,
+            totalMonthlyBusinessIncome: totalMonthlyBusinessIncome,
+            canQuitJob: canQuitJob,
+            hasQuitJob: hasQuitJob,
+            profile: profile,
+            lastRecordedMonth: lastRecordedMonth
+        )
+        
+        if let encoded = try? JSONEncoder().encode(state) {
+            UserDefaults.standard.set(encoded, forKey: "gameState")
+            UserDefaults.standard.synchronize()  // Force immediate write
+        }
+    }
+    
+    func resetGame() {
+        UserDefaults.standard.removeObject(forKey: "gameState")
+        
+        // Reset all properties to default
+        currentPlayer = Player(name: "", role: "")
+        playerGoal = nil
+        transactions = []
+        hasStartup = false
+        startupBalance = 0
+        businessTransactions = []
+        businessName = ""
+        cryptoPortfolio = CryptoPortfolio(assets: [])
+        equityPortfolio = EquityPortfolio(assets: [])
+        activeBusinesses = []
+        totalMonthlyBusinessIncome = 0
+        canQuitJob = false
+        hasQuitJob = false
+        events = []
+        eventLog = []
+        posts = []
+        lastRecordedMonth = nil
+        
+        // Add initial messages from mentor
+        messages = createInitialMentorMessages()
+        
+        // Add initial filler posts
+        posts = SampleContent.generateFillerPosts(count: 50)
+        
+        objectWillChange.send()
     }
     
     func advanceTurn() {
@@ -100,12 +260,14 @@ class GameState: ObservableObject {
     func startNewGame(with player: Player) {
         self.currentPlayer = player
         self.eventLog = []  // Clear any existing event log
+        saveState()  // Save after setting up the new player
     }
     
-    func updateProfile(name: String, role: String, goal: Profile.Goal) {
+    func updateProfile(name: String, role: String, goal: Goal) {
         profile = Profile(name: name, role: role, goal: goal)
         currentPlayer.name = name
         currentPlayer.role = role
+        playerGoal = goal  // Also set the playerGoal
     }
     
     func createStartup(name: String, initialInvestment: Double) {
@@ -172,15 +334,33 @@ class GameState: ObservableObject {
     }
     
     func recordMonthlyTransactions(for date: Date = Date()) {
-        let currentDate = date
+        let calendar = Calendar.current
+        let currentMonth = calendar.startOfMonth(for: date)
         
-        // Record income
+        // Check if we've already recorded transactions for this month
+        if let lastMonth = lastRecordedMonth,
+           calendar.isDate(lastMonth, equalTo: currentMonth, toGranularity: .month) {
+            return
+        }
+        
+        // Record salary income
         transactions.append(Transaction(
-            date: currentDate,
-            description: "Monthly Income",
+            date: currentMonth,
+            description: "Monthly Salary",
             amount: currentPlayer.monthlySalary,
             isIncome: true
         ))
+        
+        // Record revenue share from active businesses
+        for business in activeBusinesses {
+            let revenueShare = business.monthlyCashflow * (business.revenueShare / 100.0)
+            transactions.append(Transaction(
+                date: currentMonth,
+                description: "Revenue Share - \(business.title)",
+                amount: revenueShare,
+                isIncome: true
+            ))
+        }
         
         // Record expenses
         let expenses = currentPlayer.expenses
@@ -196,12 +376,12 @@ class GameState: ObservableObject {
         ]
         
         // Add each expense as a transaction
-        for (description, amount) in expenseItems {
+        for (description, amount) in expenseItems where amount > 0 {
             transactions.append(Transaction(
-                date: currentDate,
+                date: currentMonth,
                 description: description,
                 amount: amount,
-                isIncome: description == "Monthly Income"
+                isIncome: false
             ))
         }
         
@@ -212,6 +392,12 @@ class GameState: ObservableObject {
             let expenses = Double.random(in: 500...3000)
             recordBusinessTransaction(revenue: revenue, expenses: expenses)
         }
+        
+        // Update last recorded month
+        lastRecordedMonth = currentMonth
+        
+        saveState()
+        objectWillChange.send()
     }
     
     func transferToSavings(amount: Double) {
@@ -230,5 +416,566 @@ class GameState: ObservableObject {
     
     func setPlayerGoal(_ goal: Goal) {
         playerGoal = goal
+        saveState()  // Save the game after setting the goal
+        objectWillChange.send()
     }
+    
+    func markMessageAsRead(_ message: Message) {
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            var updatedMessage = message
+            updatedMessage.isRead = true
+            messages[index] = updatedMessage
+            saveState()  // Save the game state after marking message as read
+            objectWillChange.send()
+        }
+    }
+    
+    func buyStock(symbol: String, name: String, quantity: Double, price: Double) {
+        guard currentPlayer.bankBalance >= quantity * price else { return }
+        
+        // Deduct from bank balance
+        let totalCost = quantity * price
+        currentPlayer.bankBalance -= totalCost
+        
+        // Add to portfolio
+        let newAsset = Asset(
+            symbol: symbol,
+            name: name,
+            quantity: quantity,
+            currentPrice: price,
+            purchasePrice: price,
+            type: .stock
+        )
+        
+        // Check if we already own this stock
+        if let index = equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+            // Update existing position
+            let existingAsset = equityPortfolio.assets[index]
+            let newQuantity = existingAsset.quantity + quantity
+            let newAvgPrice = ((existingAsset.purchasePrice * existingAsset.quantity) + (price * quantity)) / newQuantity
+            
+            equityPortfolio.assets[index] = Asset(
+                symbol: symbol,
+                name: name,
+                quantity: newQuantity,
+                currentPrice: price,
+                purchasePrice: newAvgPrice,
+                type: .stock
+            )
+        } else {
+            // Add new position
+            equityPortfolio.assets.append(newAsset)
+        }
+        
+        // Record transaction
+        transactions.append(Transaction(
+            date: Date(),
+            description: "Buy \(symbol) Stock",
+            amount: totalCost,
+            isIncome: false
+        ))
+        
+        saveState()
+        objectWillChange.send()
+    }
+    
+    func buyCrypto(symbol: String, name: String, quantity: Double, price: Double) {
+        guard currentPlayer.bankBalance >= quantity * price else { return }
+        
+        // Deduct from bank balance
+        let totalCost = quantity * price
+        currentPlayer.bankBalance -= totalCost
+        
+        // Add to portfolio
+        let newAsset = Asset(
+            symbol: symbol,
+            name: name,
+            quantity: quantity,
+            currentPrice: price,
+            purchasePrice: price,
+            type: .crypto
+        )
+        
+        // Check if we already own this crypto
+        if let index = cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+            // Update existing position
+            let existingAsset = cryptoPortfolio.assets[index]
+            let newQuantity = existingAsset.quantity + quantity
+            let newAvgPrice = ((existingAsset.purchasePrice * existingAsset.quantity) + (price * quantity)) / newQuantity
+            
+            cryptoPortfolio.assets[index] = Asset(
+                symbol: symbol,
+                name: name,
+                quantity: newQuantity,
+                currentPrice: price,
+                purchasePrice: newAvgPrice,
+                type: .crypto
+            )
+        } else {
+            // Add new position
+            cryptoPortfolio.assets.append(newAsset)
+        }
+        
+        // Record transaction
+        transactions.append(Transaction(
+            date: Date(),
+            description: "Buy \(symbol) Crypto",
+            amount: totalCost,
+            isIncome: false
+        ))
+        
+        saveState()
+        objectWillChange.send()
+    }
+    
+    var totalPassiveIncome: Double {
+        let businessIncome = activeBusinesses.reduce(0) { $0 + $1.monthlyCashflow }
+        let dividendIncome = equityPortfolio.assets.reduce(0) { $0 + ($1.currentPrice * $1.quantity * 0.02) } // 2% dividend yield
+        return businessIncome + dividendIncome
+    }
+    
+    func checkQuitJobEligibility() {
+        canQuitJob = totalPassiveIncome > currentPlayer.monthlyExpenses
+    }
+    
+    func acceptOpportunity(_ opportunity: BusinessOpportunity) {
+        // Check if player has enough money
+        guard currentPlayer.bankBalance >= opportunity.setupCost else { return }
+        
+        // Deduct setup cost
+        currentPlayer.bankBalance -= opportunity.setupCost
+        
+        // Add to active businesses if not already present
+        if !activeBusinesses.contains(where: { $0.id == opportunity.id }) {
+            activeBusinesses.append(opportunity)
+            
+            // Record transaction
+            transactions.append(Transaction(
+                date: Date(),
+                description: "Investment in \(opportunity.title)",
+                amount: opportunity.setupCost,
+                isIncome: false
+            ))
+            
+            // Update monthly income
+            totalMonthlyBusinessIncome += opportunity.monthlyCashflow * (opportunity.revenueShare / 100.0)
+            
+            // Check if player can quit job
+            checkQuitJobEligibility()
+            
+            // Add confirmation message
+            let confirmationMessage = Message(
+                id: UUID(),
+                senderId: "SYSTEM",
+                senderName: "System",
+                senderRole: "Notification",
+                timestamp: Date(),
+                content: "Investment confirmed! You now own \(opportunity.revenueShare)% of \(opportunity.title). Your monthly share of the cash flow will be $\(Int(opportunity.monthlyCashflow * (opportunity.revenueShare / 100.0))).",
+                opportunity: nil,
+                isRead: false
+            )
+            messages.append(confirmationMessage)
+            
+            // Save state and notify observers
+            saveState()
+            objectWillChange.send()
+        }
+    }
+    
+    func handleOpportunityResponse(message: Message, accepted: Bool) {
+        guard let opportunity = message.opportunity else { return }
+        
+        // Mark the original message as read and update its status
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            var updatedMessage = message
+            updatedMessage.isRead = true
+            updatedMessage.opportunityStatus = accepted ? .accepted : .rejected
+            messages[index] = updatedMessage
+        }
+        
+        // Create and add response message
+        let responseMessage = Message(
+            id: UUID(),
+            senderId: message.senderId,
+            senderName: message.senderName,
+            senderRole: message.senderRole,
+            timestamp: Date(),
+            content: accepted ? "Great choice! Let's get started. I'll send you more details shortly." : SampleContent.getRandomRejectionResponse(),
+            opportunity: nil,
+            isRead: false
+        )
+        messages.append(responseMessage)
+        
+        // Save state after adding response message
+        saveState()
+        
+        if accepted {
+            switch opportunity.type {
+            case .investment:
+                // Find the linked investment in the post
+                if let post = posts.first(where: { $0.linkedInvestment != nil }),
+                   let asset = post.linkedInvestment {
+                    // Buy one unit of the asset
+                    if asset.type == .crypto {
+                        buyCrypto(symbol: asset.symbol, name: asset.name, quantity: 1, price: asset.currentPrice)
+                    } else {
+                        buyStock(symbol: asset.symbol, name: asset.name, quantity: 1, price: asset.currentPrice)
+                    }
+                }
+            default:
+                // Create a business opportunity from the message opportunity
+                let businessOpp = BusinessOpportunity(
+                    title: opportunity.title,
+                    description: opportunity.description,
+                    source: .partner,
+                    opportunityType: convertOpportunityType(opportunity.type),
+                    monthlyRevenue: opportunity.monthlyRevenue ?? 0,
+                    monthlyExpenses: opportunity.monthlyExpenses ?? 0,
+                    setupCost: opportunity.requiredInvestment ?? 0,
+                    potentialSaleMultiple: 3.0,
+                    revenueShare: opportunity.revenueShare ?? 100.0
+                )
+                
+                // Process the opportunity acceptance
+                acceptOpportunity(businessOpp)
+            }
+        }
+        
+        objectWillChange.send()
+    }
+    
+    private func convertOpportunityType(_ type: Opportunity.OpportunityType) -> BusinessOpportunity.OpportunityType {
+        switch type {
+        case .startup:
+            return .startup
+        case .freelance:
+            return .smallBusiness
+        case .investment:
+            return .investment
+        }
+    }
+    
+    private func applyTrendingTopic(_ topic: TrendingTopic) {
+        // Apply market impact to relevant assets
+        switch topic.impact {
+        case .cryptoMarket(let percentChange):
+            // Update all crypto assets
+            for i in 0..<cryptoPortfolio.assets.count {
+                let asset = cryptoPortfolio.assets[i]
+                let newPrice = asset.currentPrice * (1 + percentChange)
+                cryptoPortfolio.assets[i] = Asset(
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    quantity: asset.quantity,
+                    currentPrice: newPrice,
+                    purchasePrice: asset.purchasePrice,
+                    type: .crypto
+                )
+            }
+            
+        case .stockMarket(let percentChange):
+            // Update all stock assets
+            for i in 0..<equityPortfolio.assets.count {
+                let asset = equityPortfolio.assets[i]
+                let newPrice = asset.currentPrice * (1 + percentChange)
+                equityPortfolio.assets[i] = Asset(
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    quantity: asset.quantity,
+                    currentPrice: newPrice,
+                    purchasePrice: asset.purchasePrice,
+                    type: .stock
+                )
+            }
+            
+        case .specificAsset(let symbol, let percentChange):
+            // Update specific crypto asset
+            if let index = cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+                let asset = cryptoPortfolio.assets[index]
+                let newPrice = asset.currentPrice * (1 + percentChange)
+                cryptoPortfolio.assets[index] = Asset(
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    quantity: asset.quantity,
+                    currentPrice: newPrice,
+                    purchasePrice: asset.purchasePrice,
+                    type: .crypto
+                )
+            }
+            
+            // Update specific stock asset
+            if let index = equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+                let asset = equityPortfolio.assets[index]
+                let newPrice = asset.currentPrice * (1 + percentChange)
+                equityPortfolio.assets[index] = Asset(
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    quantity: asset.quantity,
+                    currentPrice: newPrice,
+                    purchasePrice: asset.purchasePrice,
+                    type: .stock
+                )
+            }
+        }
+        
+        // Save state after market impact
+        saveState()
+        objectWillChange.send()
+    }
+    
+    // Add these enums to GameState
+    enum DayType {
+        case opportunity(OpportunitySize)
+        case payday
+        case expense
+        
+        enum OpportunitySize {
+            case small
+            case large
+        }
+        
+        static func random() -> DayType {
+            let random = Int.random(in: 1...10)
+            switch random {
+            case 1...4: // 40% chance for opportunity
+                let isLarge = Bool.random()
+                return .opportunity(isLarge ? .large : .small)
+            case 5...8: // 40% chance for payday
+                return .payday
+            default: // 20% chance for expense
+                return .expense
+            }
+        }
+    }
+    
+    // Add these functions to GameState
+    func advanceDay() {
+        // Add new filler posts
+        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 3...7))
+        posts.insert(contentsOf: newPosts, at: 0)
+        
+        // Sometimes add a trending topic (30% chance)
+        if Double.random(in: 0...1) < 0.3 {
+            if let topic = TrendingTopic.predefinedTopics.randomElement() {
+                applyTrendingTopic(topic)
+                
+                // Add trending post
+                posts.insert(Post(
+                    author: "MarketWatch",
+                    role: "Market Analysis",
+                    content: topic.description,
+                    isSponsored: true
+                ), at: 0)
+            }
+        }
+        
+        // Limit total posts to prevent memory issues
+        if posts.count > 1000 {
+            posts = Array(posts.prefix(1000))
+        }
+        
+        let dayType = DayType.random()
+        
+        switch dayType {
+        case .opportunity(let size):
+            generateOpportunity(size: size)
+        case .payday:
+            handlePayday()
+        case .expense:
+            generateUnexpectedExpense()
+        }
+    }
+    
+    private func generateOpportunity(size: DayType.OpportunitySize) {
+        // 30% chance for investment opportunity
+        if Double.random(in: 0...1) < 0.3 {
+            let (investment, message) = createInvestmentOpportunity()
+            
+            // Add to feed as post
+            let post = Post(
+                id: UUID(),
+                author: message.senderName,
+                role: message.senderRole,
+                content: "🔥 Hot Investment Opportunity! Check it out!",
+                timestamp: Date(),
+                isSponsored: true,
+                linkedInvestment: investment
+            )
+            posts.append(post)
+            
+            // Add to DMs
+            messages.append(message)
+            return
+        }
+        
+        // Get a predefined business opportunity
+        let (opportunity, message) = size == .large ? 
+            PredefinedOpportunity.opportunities[0] : // Big deal
+            PredefinedOpportunity.opportunities[1]   // Small deal
+        
+        // Add to feed as post
+        let post = Post(
+            id: UUID(),
+            author: message.senderName,
+            role: message.senderRole,
+            content: size == .large ? "🔥 Exciting Opportunity! DM for details!" : "💡 Interesting opportunity. DM me to learn more.",
+            timestamp: Date(),
+            isSponsored: size == .large,
+            linkedOpportunity: opportunity
+        )
+        posts.append(post)
+        
+        // Add to DMs
+        messages.append(message)
+    }
+    
+    private func createInvestmentOpportunity() -> (Asset, Message) {
+        // 50-50 chance between stock and crypto
+        if Bool.random() {
+            let asset = PredefinedOpportunity.stockOpportunity
+            return (
+                asset,
+                Message(
+                    senderId: UUID().uuidString,
+                    senderName: "StockPro",
+                    senderRole: "Stock Analyst",
+                    timestamp: Date(),
+                    content: "💹 Amazon just released strong earnings! Consider adding to your portfolio.",
+                    opportunity: Opportunity(
+                        title: asset.name,
+                        description: "Add \(asset.name) (\(asset.symbol)) to your portfolio at the current price of $\(Int(asset.currentPrice)).",
+                        type: .investment,
+                        requiredInvestment: asset.currentPrice,
+                        monthlyRevenue: nil,
+                        monthlyExpenses: nil,
+                        revenueShare: nil
+                    )
+                )
+            )
+        } else {
+            let asset = PredefinedOpportunity.cryptoOpportunity
+            return (
+                asset,
+                Message(
+                    senderId: UUID().uuidString,
+                    senderName: "CryptoTrader",
+                    senderRole: "Crypto Analyst",
+                    timestamp: Date(),
+                    content: "📈 \(asset.symbol) coin is showing strong momentum! Great time to invest.",
+                    opportunity: Opportunity(
+                        title: asset.name,
+                        description: "Add \(asset.name) (\(asset.symbol)) to your portfolio at the current price of $\(Int(asset.currentPrice)).",
+                        type: .investment,
+                        requiredInvestment: asset.currentPrice,
+                        monthlyRevenue: nil,
+                        monthlyExpenses: nil,
+                        revenueShare: nil
+                    )
+                )
+            )
+        }
+    }
+    
+    private func handlePayday() {
+        // Calculate next month based on last recorded month or current date
+        let calendar = Calendar.current
+        let nextMonth: Date
+        if let lastMonth = lastRecordedMonth {
+            nextMonth = calendar.date(byAdding: .month, value: 1, to: lastMonth) ?? Date()
+        } else {
+            nextMonth = calendar.startOfMonth(for: Date())
+        }
+        
+        // Add salary to bank account
+        currentPlayer.bankBalance += currentPlayer.monthlySalary
+        
+        // Add revenue share from businesses
+        for business in activeBusinesses {
+            let revenueShare = business.monthlyCashflow * (business.revenueShare / 100.0)
+            currentPlayer.bankBalance += revenueShare
+        }
+        
+        // Add message notification
+        messages.append(Message(
+            senderId: "BANK",
+            senderName: "Quantum Bank",
+            senderRole: "Payroll Department",
+            timestamp: nextMonth,
+            content: "Your monthly salary of $\(Int(currentPlayer.monthlySalary)) has been deposited into your account.",
+            opportunity: nil
+        ))
+        
+        // Record transactions for the next month
+        recordMonthlyTransactions(for: nextMonth)
+    }
+    
+    private func generateUnexpectedExpense() {
+        // Get a random predefined expense
+        let expense = UnexpectedExpense.predefinedExpenses.randomElement()!
+        
+        // Get current month
+        let calendar = Calendar.current
+        let currentMonth = lastRecordedMonth ?? calendar.startOfMonth(for: Date())
+        
+        // Add message notification
+        messages.append(Message(
+            senderId: "EXPENSE",
+            senderName: "Life Happens",
+            senderRole: "Expense Alert",
+            timestamp: currentMonth,
+            content: "\(expense.title): \(expense.description)\nAmount: $\(Int(expense.amount))",
+            opportunity: nil
+        ))
+        
+        // Deduct from bank balance
+        currentPlayer.bankBalance -= expense.amount
+        
+        // Record transaction
+        transactions.append(Transaction(
+            date: currentMonth,
+            description: expense.title,
+            amount: expense.amount,
+            isIncome: false
+        ))
+    }
+    
+    // Add this computed property to filter out archived messages
+    var activeMessages: [Message] {
+        messages.filter { !$0.isArchived }
+    }
+    
+    func archiveMessage(_ message: Message) {
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            var updatedMessage = message
+            updatedMessage.isArchived = true
+            messages[index] = updatedMessage
+            saveState()
+            objectWillChange.send()
+        }
+    }
+    
+    // Update the unreadMessageCount to only count unread active messages
+    var unreadMessageCount: Int {
+        activeMessages.filter { !$0.isRead }.count
+    }
+}
+
+// Structure to represent saved game data
+struct SavedGameState: Codable {
+    let player: Player
+    let goal: Goal?
+    let transactions: [Transaction]
+    let messages: [Message]
+    let hasStartup: Bool
+    let startupBalance: Double
+    let businessTransactions: [Transaction]
+    let businessName: String
+    let cryptoPortfolio: CryptoPortfolio
+    let equityPortfolio: EquityPortfolio
+    let activeBusinesses: [BusinessOpportunity]
+    let totalMonthlyBusinessIncome: Double
+    let canQuitJob: Bool
+    let hasQuitJob: Bool
+    let profile: Profile?
+    let lastRecordedMonth: Date?
 } 
