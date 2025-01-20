@@ -742,7 +742,8 @@ class GameState: ObservableObject {
                             monthlyExpenses: opportunity.monthlyExpenses ?? 0,
                             setupCost: opportunity.requiredInvestment ?? 0,
                             potentialSaleMultiple: 3.0,
-                            revenueShare: opportunity.revenueShare ?? 100.0
+                            revenueShare: opportunity.revenueShare ?? 100.0,
+                            type: .opportunity  // Explicitly set type to .opportunity
                         )
                         
                         // Process the opportunity acceptance
