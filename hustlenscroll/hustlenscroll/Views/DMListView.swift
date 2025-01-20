@@ -3,44 +3,59 @@ import SwiftUI
 struct DMListView: View {
     @EnvironmentObject var gameState: GameState
     @State private var selectedThread: MessageThread?
+    @State private var showArchived = false
     
     // Group messages by sender
     var messageThreads: [MessageThread] {
-        Dictionary(grouping: gameState.activeMessages) { $0.senderId }
+        let filteredMessages = showArchived ? gameState.messages : gameState.activeMessages
+        return Dictionary(grouping: filteredMessages) { $0.senderId }
             .map { senderId, messages in
-                let sortedMessages = messages.sorted { $0.timestamp < $1.timestamp }
+                let sortedMessages = messages.sorted { $0.timestamp > $1.timestamp }
                 return MessageThread(
                     senderId: senderId,
                     senderName: messages[0].senderName,
                     senderRole: messages[0].senderRole,
                     messageIds: sortedMessages.map { $0.id },
-                    hasUnread: messages.contains { !$0.isRead }
+                    hasUnread: messages.contains { !$0.isRead },
+                    lastMessageTimestamp: sortedMessages.first?.timestamp ?? Date.distantPast,
+                    isArchived: messages[0].isArchived
                 )
             }
-            .sorted { thread1, thread2 in
-                let lastMessage1 = gameState.messages.first(where: { $0.id == thread1.messageIds.last })
-                let lastMessage2 = gameState.messages.first(where: { $0.id == thread2.messageIds.last })
-                return (lastMessage1?.timestamp ?? Date()) > (lastMessage2?.timestamp ?? Date())
-            }
+            .sorted { $0.lastMessageTimestamp > $1.lastMessageTimestamp }
     }
     
     var body: some View {
         NavigationStack {
-            List(messageThreads) { thread in
-                NavigationLink(value: thread) {
-                    MessageThreadRow(gameState: gameState, thread: thread)
-                }
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        // Archive all messages in the thread
-                        for messageId in thread.messageIds {
-                            if let message = gameState.messages.first(where: { $0.id == messageId }) {
-                                gameState.archiveMessage(message)
-                            }
-                        }
-                    } label: {
-                        Label("Archive", systemImage: "archivebox")
+            List {
+                ForEach(messageThreads) { thread in
+                    NavigationLink(value: thread) {
+                        MessageThreadRow(gameState: gameState, thread: thread)
                     }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            // Archive all messages in the thread
+                            for messageId in thread.messageIds {
+                                if let message = gameState.messages.first(where: { $0.id == messageId }) {
+                                    gameState.archiveMessage(message)
+                                }
+                            }
+                        } label: {
+                            Label(thread.isArchived ? "Unarchive" : "Archive", 
+                                  systemImage: thread.isArchived ? "tray.and.arrow.up" : "archivebox")
+                        }
+                    }
+                }
+                
+                Section {
+                    Toggle(isOn: $showArchived) {
+                        HStack {
+                            Image(systemName: "archivebox")
+                                .foregroundColor(.gray)
+                            Text("Show Archived Messages")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .tint(.blue)
                 }
             }
             .navigationTitle("Messages")
@@ -55,7 +70,7 @@ struct MessageThreadRow: View {
     @ObservedObject var gameState: GameState
     let thread: MessageThread
     
-    var firstMessage: Message? {
+    var lastMessage: Message? {
         gameState.messages.first(where: { $0.id == thread.messageIds.first })
     }
     
@@ -65,25 +80,36 @@ struct MessageThreadRow: View {
         }
     }
     
+    var formattedTimestamp: String {
+        guard let timestamp = lastMessage?.timestamp else { return "" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: timestamp, relativeTo: Date())
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             ProfileImage(senderId: thread.senderId, size: 50)
             
-            VStack(alignment: .leading) {
-                Text(thread.senderName)
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(thread.senderName)
+                        .font(.headline)
+                    Spacer()
+                    Text(formattedTimestamp)
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
                 Text(thread.senderRole)
                     .font(.subheadline)
                     .foregroundColor(.gray)
-                if let message = firstMessage {
+                if let message = lastMessage {
                     Text(message.content)
                         .font(.subheadline)
                         .lineLimit(1)
                         .foregroundColor(.gray)
                 }
             }
-            
-            Spacer()
             
             if hasUnreadMessages {
                 Circle()
@@ -92,6 +118,7 @@ struct MessageThreadRow: View {
             }
         }
         .padding(.vertical, 4)
+        .opacity(thread.isArchived ? 0.6 : 1.0)
     }
 }
 
@@ -102,6 +129,8 @@ struct MessageThread: Identifiable, Hashable {
     let senderRole: String
     let messageIds: [UUID]
     let hasUnread: Bool
+    let lastMessageTimestamp: Date
+    let isArchived: Bool
     
     // Implement hash(into:) for Hashable conformance
     func hash(into hasher: inout Hasher) {
@@ -113,12 +142,14 @@ struct MessageThread: Identifiable, Hashable {
         lhs.id == rhs.id
     }
     
-    init(senderId: String, senderName: String, senderRole: String, messageIds: [UUID], hasUnread: Bool) {
+    init(senderId: String, senderName: String, senderRole: String, messageIds: [UUID], hasUnread: Bool, lastMessageTimestamp: Date = Date(), isArchived: Bool = false) {
         self.id = senderId
         self.senderId = senderId
         self.senderName = senderName
         self.senderRole = senderRole
         self.messageIds = messageIds
         self.hasUnread = hasUnread
+        self.lastMessageTimestamp = lastMessageTimestamp
+        self.isArchived = isArchived
     }
 } 

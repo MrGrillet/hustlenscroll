@@ -1,10 +1,11 @@
 import SwiftUI
 
 struct MessageBubble: View {
-    let message: Message
+    @Binding var message: Message
     @EnvironmentObject var gameState: GameState
     @State private var showingInvestmentPurchase = false
     @State private var selectedAsset: Asset?
+    @State private var isProcessing = false
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -30,34 +31,50 @@ struct MessageBubble: View {
                     if message.opportunityStatus == .pending {
                         HStack(spacing: 16) {
                             Button(action: {
+                                isProcessing = true
                                 gameState.handleOpportunityResponse(message: message, accepted: true)
+                                isProcessing = false
                             }) {
                                 HStack {
-                                    Image(systemName: "checkmark.circle.fill")
-                                    Text("Accept")
+                                    if isProcessing {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    } else {
+                                        Image(systemName: "checkmark.circle.fill")
+                                        Text("Accept")
+                                    }
                                 }
                                 .frame(minWidth: 100)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
-                                .background(Color.green)
+                                .background(isProcessing ? Color.gray : Color.green)
                                 .cornerRadius(8)
                             }
+                            .disabled(isProcessing)
                             
                             Button(action: {
+                                isProcessing = true
                                 gameState.handleOpportunityResponse(message: message, accepted: false)
+                                isProcessing = false
                             }) {
                                 HStack {
-                                    Image(systemName: "xmark.circle.fill")
-                                    Text("Reject")
+                                    if isProcessing {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    } else {
+                                        Image(systemName: "xmark.circle.fill")
+                                        Text("Reject")
+                                    }
                                 }
                                 .frame(minWidth: 100)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 12)
-                                .background(Color.red)
+                                .background(isProcessing ? Color.gray : Color.red)
                                 .cornerRadius(8)
                             }
+                            .disabled(isProcessing)
                         }
                         .padding(.top, 12)
                     } else if let status = message.opportunityStatus {

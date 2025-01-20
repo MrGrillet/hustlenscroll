@@ -164,7 +164,7 @@ class GameState: ObservableObject {
         ]
         
         // Add initial filler posts
-        self.posts = SampleContent.generateFillerPosts(count: 50)
+        self.posts = SampleContent.generateFillerPosts(count: 10)
         
         // Force a save to ensure everything is persisted
         saveState()
@@ -194,6 +194,11 @@ class GameState: ObservableObject {
             UserDefaults.standard.set(encoded, forKey: "gameState")
             UserDefaults.standard.synchronize()  // Force immediate write
         }
+        
+        // Add initial filler posts
+        posts = SampleContent.generateFillerPosts(count: 10)
+        
+        objectWillChange.send()
     }
     
     func resetGame() {
@@ -222,7 +227,7 @@ class GameState: ObservableObject {
         messages = createInitialMentorMessages()
         
         // Add initial filler posts
-        posts = SampleContent.generateFillerPosts(count: 50)
+        posts = SampleContent.generateFillerPosts(count: 10)
         
         objectWillChange.send()
     }
@@ -489,7 +494,7 @@ class GameState: ObservableObject {
                 var updatedMessage = message
                 updatedMessage.isRead = true
                 messages[index] = updatedMessage
-                saveState()  // Save the game state after marking message as read
+                saveState()
                 objectWillChange.send()
             }
         }
@@ -673,63 +678,66 @@ class GameState: ObservableObject {
         
         // Mark the original message as read and update its status
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
-            var updatedMessage = message
-            updatedMessage.isRead = true
-            updatedMessage.opportunityStatus = accepted ? .accepted : .rejected
-            messages[index] = updatedMessage
-        }
-        
-        // Create and add response message
-        let responseMessage = Message(
-            id: UUID(),
-            senderId: message.senderId,
-            senderName: message.senderName,
-            senderRole: message.senderRole,
-            timestamp: Date(),
-            content: accepted ? "Great choice! Let's get started. I'll send you more details shortly." : SampleContent.getRandomRejectionResponse(),
-            opportunity: nil,
-            isRead: false
-        )
-        messages.append(responseMessage)
-        
-        // Save state after adding response message
-        saveState()
-        
-        if accepted {
-            switch opportunity.type {
-            case .investment:
-                // Find the matching investment in the posts based on the opportunity title
-                if let post = posts.first(where: { 
-                    guard let investment = $0.linkedInvestment else { return false }
-                    return investment.name == opportunity.title
-                }), let asset = post.linkedInvestment {
-                    // Show investment purchase view with the correct asset
-                    NotificationCenter.default.post(
-                        name: NSNotification.Name("ShowInvestmentPurchase"),
-                        object: nil,
-                        userInfo: ["asset": asset]
-                    )
-                }
-            default:
-                // Create a business opportunity from the message opportunity
-                let businessOpp = BusinessOpportunity(
-                    title: opportunity.title,
-                    description: opportunity.description,
-                    source: .partner,
-                    opportunityType: convertOpportunityType(opportunity.type),
-                    monthlyRevenue: opportunity.monthlyRevenue ?? 0,
-                    monthlyExpenses: opportunity.monthlyExpenses ?? 0,
-                    setupCost: opportunity.requiredInvestment ?? 0,
-                    potentialSaleMultiple: 3.0,
-                    revenueShare: opportunity.revenueShare ?? 100.0
-                )
+            DispatchQueue.main.async {
+                var updatedMessage = message
+                updatedMessage.isRead = true
+                updatedMessage.opportunityStatus = accepted ? .accepted : .rejected
+                self.messages[index] = updatedMessage
+                self.objectWillChange.send()
                 
-                // Process the opportunity acceptance
-                acceptOpportunity(businessOpp)
+                // Create and add response message
+                let responseMessage = Message(
+                    id: UUID(),
+                    senderId: message.senderId,
+                    senderName: message.senderName,
+                    senderRole: message.senderRole,
+                    timestamp: Date(),
+                    content: accepted ? "Great choice! Let's get started. I'll send you more details shortly." : SampleContent.getRandomRejectionResponse(),
+                    opportunity: nil,
+                    isRead: false
+                )
+                self.messages.append(responseMessage)
+                
+                // Save state after adding response message
+                self.saveState()
+                
+                if accepted {
+                    switch opportunity.type {
+                    case .investment:
+                        // Find the matching investment in the posts based on the opportunity title
+                        if let post = self.posts.first(where: { 
+                            guard let investment = $0.linkedInvestment else { return false }
+                            return investment.name == opportunity.title
+                        }), let asset = post.linkedInvestment {
+                            // Show investment purchase view with the correct asset
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("ShowInvestmentPurchase"),
+                                object: nil,
+                                userInfo: ["asset": asset]
+                            )
+                        }
+                    default:
+                        // Create a business opportunity from the message opportunity
+                        let businessOpp = BusinessOpportunity(
+                            title: opportunity.title,
+                            description: opportunity.description,
+                            source: .partner,
+                            opportunityType: self.convertOpportunityType(opportunity.type),
+                            monthlyRevenue: opportunity.monthlyRevenue ?? 0,
+                            monthlyExpenses: opportunity.monthlyExpenses ?? 0,
+                            setupCost: opportunity.requiredInvestment ?? 0,
+                            potentialSaleMultiple: 3.0,
+                            revenueShare: opportunity.revenueShare ?? 100.0
+                        )
+                        
+                        // Process the opportunity acceptance
+                        self.acceptOpportunity(businessOpp)
+                    }
+                }
+                
+                self.objectWillChange.send()
             }
         }
-        
-        objectWillChange.send()
     }
     
     private func convertOpportunityType(_ type: Opportunity.OpportunityType) -> BusinessOpportunity.OpportunityType {
@@ -839,7 +847,7 @@ class GameState: ObservableObject {
     // Add these functions to GameState
     func advanceDay() {
         // Add new filler posts
-        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 3...7))
+        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 2...4))
         posts.insert(contentsOf: newPosts, at: 0)
         
         // Sometimes add a trending topic (30% chance)
@@ -858,11 +866,21 @@ class GameState: ObservableObject {
         }
         
         // Limit total posts to prevent memory issues
-        if posts.count > 1000 {
-            posts = Array(posts.prefix(1000))
+        if posts.count > 100 {
+            posts = Array(posts.prefix(100))
         }
         
         let dayType = DayType.random()
+        
+        // Mark old messages as read (older than 24 hours)
+        let twentyFourHoursAgo = Calendar.current.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
+        for (index, message) in messages.enumerated() {
+            if message.timestamp < twentyFourHoursAgo && !message.isRead {
+                var updatedMessage = message
+                updatedMessage.isRead = true
+                messages[index] = updatedMessage
+            }
+        }
         
         switch dayType {
         case .opportunity(let size):
@@ -872,6 +890,9 @@ class GameState: ObservableObject {
         case .expense:
             generateUnexpectedExpense()
         }
+        
+        saveState()
+        objectWillChange.send()
     }
     
     private func generateOpportunity(size: DayType.OpportunitySize) {
@@ -1058,7 +1079,16 @@ class GameState: ObservableObject {
     
     // Update the unreadMessageCount to only count unread active messages
     var unreadMessageCount: Int {
-        let count = activeMessages.filter { !$0.isRead }.count
+        // Only count messages that are:
+        // 1. Not archived
+        // 2. Not read
+        // 3. Not older than 24 hours (to prevent old messages from showing as unread)
+        let twentyFourHoursAgo = Calendar.current.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
+        let count = activeMessages.filter { message in
+            !message.isRead && 
+            !message.isArchived && 
+            message.timestamp > twentyFourHoursAgo
+        }.count
         return count
     }
     
@@ -1070,7 +1100,7 @@ class GameState: ObservableObject {
     func archiveMessage(_ message: Message) {
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
             var updatedMessage = message
-            updatedMessage.isArchived = true
+            updatedMessage.isArchived = !message.isArchived // Toggle archive state
             updatedMessage.isRead = true  // Mark archived messages as read
             messages[index] = updatedMessage
             saveState()

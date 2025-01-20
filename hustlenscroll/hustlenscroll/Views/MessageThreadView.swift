@@ -15,9 +15,19 @@ struct MessageThreadView: View {
     var body: some View {
         ScrollView {
             ScrollViewReader { proxy in
-                LazyVStack(spacing: 16) {
-                    ForEach(messages) { message in
-                        MessageBubble(message: message)
+                // Add spacer to push content to bottom when few messages
+                VStack {
+                    Spacer()
+                    LazyVStack(spacing: 16) {
+                        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                            MessageBubble(message: Binding(
+                                get: { messages[index] },
+                                set: { newMessage in
+                                    if let gameStateIndex = gameState.messages.firstIndex(where: { $0.id == newMessage.id }) {
+                                        gameState.messages[gameStateIndex] = newMessage
+                                    }
+                                }
+                            ))
                             .id(message.id)
                             .onAppear {
                                 // Mark message as read when it becomes visible
@@ -25,9 +35,12 @@ struct MessageThreadView: View {
                                     gameState.markMessageAsRead(message)
                                 }
                             }
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 }
-                .padding()
+                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 180) // Account for navigation bar and bottom bar
                 .onAppear {
                     scrollProxy = proxy
                     lastMessageId = messages.last?.id

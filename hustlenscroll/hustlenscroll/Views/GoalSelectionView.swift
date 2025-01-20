@@ -7,31 +7,76 @@ struct GoalSelectionView: View {
     @State private var showingGoalDetail = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Choose Your Goal")
-                .font(.title)
-                .bold()
-            
-            Text("What do you want to achieve?")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-            
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible())], spacing: 16) {
-                    ForEach(Goal.allCases) { goal in
-                        GoalCard(goal: goal)
-                            .onTapGesture {
-                                selectedGoal = goal
-                                showingGoalDetail = true
+        NavigationView {
+            VStack(spacing: 20) {
+                Text("Choose Your Goal")
+                    .font(.title)
+                    .bold()
+                
+                Text("What do you want to achieve?")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                
+                ScrollView {
+                    VStack(spacing: 16) {
+                        ForEach(Goal.allCases) { goal in
+                            Button {
+                                withAnimation {
+                                    selectedGoal = goal
+                                    DispatchQueue.main.async {
+                                        showingGoalDetail = true
+                                    }
+                                }
+                            } label: {
+                                GoalCard(goal: goal)
                             }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .navigationBarHidden(true)
+        }
+        .fullScreenCover(item: $selectedGoal) { goal in
+            NavigationView {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text(goal.title)
+                            .font(.title)
+                            .bold()
+                        
+                        Text("Target Amount")
+                            .font(.headline)
+                        Text("$\(Int(goal.price).formattedWithSeparator)")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                        
+                        Text("Description")
+                            .font(.headline)
+                        Text(goal.longDescription)
+                            .font(.body)
+                            .foregroundColor(.gray)
+                    }
+                    .padding()
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Back") {
+                            selectedGoal = nil
+                        }
+                    }
+                    
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Select") {
+                            gameState.setPlayerGoal(goal)
+                            selectedGoal = nil
+                            dismiss()
+                        }
+                        .bold()
                     }
                 }
-                .padding()
-            }
-        }
-        .sheet(isPresented: $showingGoalDetail) {
-            if let goal = selectedGoal {
-                GoalDetailView(goal: goal, parentDismiss: dismiss)
             }
         }
     }
@@ -59,61 +104,6 @@ struct GoalCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.gray.opacity(0.1))
         .cornerRadius(12)
-    }
-}
-
-struct GoalDetailView: View {
-    let goal: Goal
-    let parentDismiss: DismissAction
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var gameState: GameState
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(goal.title)
-                        .font(.title)
-                        .bold()
-                    
-                    Text("Target Amount")
-                        .font(.headline)
-                    Text("$\(Int(goal.price).formattedWithSeparator)")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                    
-                    Text("Description")
-                        .font(.headline)
-                    Text(goal.longDescription)
-                        .font(.body)
-                        .foregroundColor(.gray)
-                }
-                .padding()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Back") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Select") {
-                        // Set the goal first
-                        gameState.setPlayerGoal(goal)
-                        
-                        // Give the state a moment to update
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            // Then dismiss both sheets
-                            dismiss()
-                            parentDismiss()
-                        }
-                    }
-                    .bold()
-                }
-            }
-        }
     }
 }
 
