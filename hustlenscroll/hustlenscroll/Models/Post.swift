@@ -1,6 +1,6 @@
 import Foundation
 
-struct Post: Identifiable {
+struct Post: Identifiable, Codable {
     let id: UUID
     let author: String
     let role: String
@@ -20,6 +20,10 @@ struct Post: Identifiable {
     
     var isGameEvent: Bool {
         linkedOpportunity != nil || linkedInvestment != nil
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id, author, role, content, timestamp, isSponsored, linkedOpportunity, linkedInvestment
     }
     
     init(id: UUID = UUID(), 

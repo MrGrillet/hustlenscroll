@@ -15,9 +15,10 @@ struct MessageThreadView: View {
     var body: some View {
         ScrollView {
             ScrollViewReader { proxy in
-                // Add spacer to push content to bottom when few messages
-                VStack {
-                    Spacer()
+                VStack(spacing: 16) {
+                    // Add spacer at the top for better scrolling
+                    Spacer(minLength: 20)
+                    
                     LazyVStack(spacing: 16) {
                         ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
                             MessageBubble(message: Binding(
@@ -37,18 +38,24 @@ struct MessageThreadView: View {
                             }
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
+                    
+                    // Add spacer at the bottom for better scrolling
+                    Spacer(minLength: 60)
                 }
-                .frame(maxWidth: .infinity, minHeight: UIScreen.main.bounds.height - 180) // Account for navigation bar and bottom bar
+                .padding(.horizontal)
+                .safeAreaInset(edge: .bottom) {
+                    Color.clear.frame(height: 20)
+                }
                 .onAppear {
                     scrollProxy = proxy
                     lastMessageId = messages.last?.id
                     
-                    // Scroll to bottom with animation
-                    if let lastId = lastMessageId {
-                        withAnimation {
-                            proxy.scrollTo(lastId, anchor: .bottom)
+                    // Scroll to bottom with animation after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        if let lastId = lastMessageId {
+                            withAnimation {
+                                proxy.scrollTo(lastId, anchor: .bottom)
+                            }
                         }
                     }
                 }
@@ -63,5 +70,6 @@ struct MessageThreadView: View {
             }
         }
         .navigationTitle(thread.senderName)
+        .navigationBarTitleDisplayMode(.inline)
     }
 } 

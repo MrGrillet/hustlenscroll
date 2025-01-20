@@ -1,6 +1,17 @@
 import Foundation
 import SwiftUI
 
+// Add Calendar extension for startOfMonth
+extension Calendar {
+    func startOfMonth(from date: Date) -> Date {
+        let components = self.dateComponents([.year, .month], from: date)
+        guard let startDate = self.date(from: components) else {
+            return date
+        }
+        return startDate
+    }
+}
+
 class GameState: ObservableObject {
     @Published var currentPlayer: Player
     @Published var events: [GameEvent]
@@ -36,22 +47,16 @@ class GameState: ObservableObject {
     @Published var activeTrendingTopics: [TrendingTopic] = []
     @Published var lastRecordedMonth: Date?
     
-    private func createInitialMentorMessages() -> [Message] {
+    var initialMessages: [Message] {
+        // Create a fixed date for initial messages - Jan 1, 2024
+        let baseDate = Calendar.current.date(from: DateComponents(year: 2024, month: 1, day: 1))!
+        
         return [
             Message(
                 senderId: "mentor",
                 senderName: "David Chen",
                 senderRole: "Startup Advisor",
-                timestamp: Date().addingTimeInterval(-300),
-                content: "👋 Hey there! I'm David, and I'll be your mentor on your journey from employee to entrepreneur. I've helped dozens of developers like you build successful businesses.",
-                opportunity: nil,
-                isRead: false
-            ),
-            Message(
-                senderId: "mentor",
-                senderName: "David Chen",
-                senderRole: "Startup Advisor",
-                timestamp: Date().addingTimeInterval(-240),
+                timestamp: baseDate,
                 content: "Your goal is to achieve financial independence. You can do this in two phases:\n\n1️⃣ First, build enough side income to quit your job\n2️⃣ Then, grow your investments to achieve your ultimate goal",
                 opportunity: nil,
                 isRead: false
@@ -60,7 +65,7 @@ class GameState: ObservableObject {
                 senderId: "mentor",
                 senderName: "David Chen",
                 senderRole: "Startup Advisor",
-                timestamp: Date().addingTimeInterval(-180),
+                timestamp: baseDate.addingTimeInterval(60),
                 content: "You can quit your job when your monthly passive income exceeds your monthly expenses. This can come from:\n\n📱 Side projects\n💼 Consulting work\n📈 Investment returns",
                 opportunity: nil,
                 isRead: false
@@ -69,7 +74,7 @@ class GameState: ObservableObject {
                 senderId: "mentor",
                 senderName: "David Chen",
                 senderRole: "Startup Advisor",
-                timestamp: Date().addingTimeInterval(-120),
+                timestamp: baseDate.addingTimeInterval(120),
                 content: "To get started:\n\n1. Pull down the Feed to refresh and see opportunities\n2. Look for both small and large opportunities\n3. Check your Messages for details when something interests you\n4. Track your progress in the Bank tab",
                 opportunity: nil,
                 isRead: false
@@ -78,7 +83,7 @@ class GameState: ObservableObject {
                 senderId: "mentor",
                 senderName: "David Chen",
                 senderRole: "Startup Advisor",
-                timestamp: Date().addingTimeInterval(-60),
+                timestamp: baseDate.addingTimeInterval(180),
                 content: "I'll be here to guide you along the way. Good luck! 🚀\n\nP.S. First step: Pull down the Feed to start looking for opportunities!",
                 opportunity: nil,
                 isRead: false
@@ -124,11 +129,11 @@ class GameState: ObservableObject {
             
             // Only add initial messages if we don't have any
             if messages.isEmpty {
-                self.messages = createInitialMentorMessages()
+                self.messages = initialMessages
             }
         } else {
             // Add initial messages for new game
-            self.messages = createInitialMentorMessages()
+            self.messages = initialMessages
         }
         
         // Initialize sample events
@@ -164,7 +169,7 @@ class GameState: ObservableObject {
         ]
         
         // Add initial filler posts
-        self.posts = SampleContent.generateFillerPosts(count: 10)
+        self.posts = SampleContent.generateFillerPosts(count: 3)
         
         // Force a save to ensure everything is persisted
         saveState()
@@ -172,6 +177,9 @@ class GameState: ObservableObject {
     
     func saveState() {
         let state = SavedGameState(
+            events: events,
+            eventLog: eventLog,
+            posts: posts,
             player: currentPlayer,
             goal: playerGoal,
             transactions: transactions,
@@ -194,9 +202,6 @@ class GameState: ObservableObject {
             UserDefaults.standard.set(encoded, forKey: "gameState")
             UserDefaults.standard.synchronize()  // Force immediate write
         }
-        
-        // Add initial filler posts
-        posts = SampleContent.generateFillerPosts(count: 10)
         
         objectWillChange.send()
     }
@@ -224,7 +229,7 @@ class GameState: ObservableObject {
         lastRecordedMonth = nil
         
         // Add initial messages from mentor
-        messages = createInitialMentorMessages()
+        messages = initialMessages
         
         // Add initial filler posts
         posts = SampleContent.generateFillerPosts(count: 10)
@@ -368,7 +373,7 @@ class GameState: ObservableObject {
     
     func recordMonthlyTransactions(for date: Date = Date()) {
         let calendar = Calendar.current
-        let currentMonth = calendar.startOfMonth(for: date)
+        let currentMonth = calendar.startOfMonth(from: date)
         
         // Check if we've already recorded transactions for this month
         if let lastMonth = lastRecordedMonth,
@@ -491,7 +496,7 @@ class GameState: ObservableObject {
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
             // Only update if message is actually unread
             if !messages[index].isRead {
-                var updatedMessage = message
+                var updatedMessage = messages[index]  // Use the existing message to preserve all other properties
                 updatedMessage.isRead = true
                 messages[index] = updatedMessage
                 saveState()
@@ -654,7 +659,7 @@ class GameState: ObservableObject {
             // Check if player can quit job
             checkQuitJobEligibility()
             
-            // Add confirmation message
+            // Add confirmation message with explicit isRead = false
             let confirmationMessage = Message(
                 id: UUID(),
                 senderId: "SYSTEM",
@@ -663,7 +668,7 @@ class GameState: ObservableObject {
                 timestamp: Date(),
                 content: "Investment confirmed! You now own \(opportunity.revenueShare)% of \(opportunity.title). Your monthly share of the cash flow will be $\(Int(opportunity.monthlyCashflow * (opportunity.revenueShare / 100.0))).",
                 opportunity: nil,
-                isRead: false
+                isRead: false  // Explicitly set as unread
             )
             messages.append(confirmationMessage)
             
@@ -685,7 +690,7 @@ class GameState: ObservableObject {
                 self.messages[index] = updatedMessage
                 self.objectWillChange.send()
                 
-                // Create and add response message
+                // Create and add response message with explicit isRead = false
                 let responseMessage = Message(
                     id: UUID(),
                     senderId: message.senderId,
@@ -694,7 +699,7 @@ class GameState: ObservableObject {
                     timestamp: Date(),
                     content: accepted ? "Great choice! Let's get started. I'll send you more details shortly." : SampleContent.getRandomRejectionResponse(),
                     opportunity: nil,
-                    isRead: false
+                    isRead: false  // Explicitly set as unread
                 )
                 self.messages.append(responseMessage)
                 
@@ -872,16 +877,6 @@ class GameState: ObservableObject {
         
         let dayType = DayType.random()
         
-        // Mark old messages as read (older than 24 hours)
-        let twentyFourHoursAgo = Calendar.current.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
-        for (index, message) in messages.enumerated() {
-            if message.timestamp < twentyFourHoursAgo && !message.isRead {
-                var updatedMessage = message
-                updatedMessage.isRead = true
-                messages[index] = updatedMessage
-            }
-        }
-        
         switch dayType {
         case .opportunity(let size):
             generateOpportunity(size: size)
@@ -1021,7 +1016,7 @@ class GameState: ObservableObject {
         if let lastMonth = lastRecordedMonth {
             nextMonth = calendar.date(byAdding: .month, value: 1, to: lastMonth) ?? Date()
         } else {
-            nextMonth = calendar.startOfMonth(for: Date())
+            nextMonth = Date() // Use current date instead of start of month
         }
         
         // Add salary to bank account
@@ -1033,15 +1028,17 @@ class GameState: ObservableObject {
             currentPlayer.bankBalance += revenueShare
         }
         
-        // Add message notification
-        messages.append(Message(
+        // Add message notification with explicit isRead = false
+        let paydayMessage = Message(
             senderId: "BANK",
             senderName: "Quantum Bank",
             senderRole: "Payroll Department",
             timestamp: nextMonth,
             content: "Your monthly salary of $\(Int(currentPlayer.monthlySalary)) has been deposited into your account.",
-            opportunity: nil
-        ))
+            opportunity: nil,
+            isRead: false
+        )
+        messages.append(paydayMessage)
         
         // Record transactions for the next month
         recordMonthlyTransactions(for: nextMonth)
@@ -1051,26 +1048,24 @@ class GameState: ObservableObject {
         // Get a random predefined expense
         let expense = UnexpectedExpense.predefinedExpenses.randomElement()!
         
-        // Get current month
-        let calendar = Calendar.current
-        let currentMonth = lastRecordedMonth ?? calendar.startOfMonth(for: Date())
-        
-        // Add message notification
-        messages.append(Message(
+        // Use current date for the message
+        let expenseMessage = Message(
             senderId: "EXPENSE",
             senderName: "Life Happens",
             senderRole: "Expense Alert",
-            timestamp: currentMonth,
+            timestamp: Date(),
             content: "\(expense.title): \(expense.description)\nAmount: $\(Int(expense.amount))",
-            opportunity: nil
-        ))
+            opportunity: nil,
+            isRead: false
+        )
+        messages.append(expenseMessage)
         
         // Deduct from bank balance
         currentPlayer.bankBalance -= expense.amount
         
         // Record transaction
         transactions.append(Transaction(
-            date: currentMonth,
+            date: Date(),
             description: expense.title,
             amount: expense.amount,
             isIncome: false
@@ -1079,38 +1074,56 @@ class GameState: ObservableObject {
     
     // Update the unreadMessageCount to only count unread active messages
     var unreadMessageCount: Int {
-        // Only count messages that are:
-        // 1. Not archived
-        // 2. Not read
-        // 3. Not older than 24 hours (to prevent old messages from showing as unread)
         let twentyFourHoursAgo = Calendar.current.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
-        let count = activeMessages.filter { message in
+        return messages.filter { message in
             !message.isRead && 
             !message.isArchived && 
-            message.timestamp > twentyFourHoursAgo
+            message.timestamp >= twentyFourHoursAgo
         }.count
-        return count
     }
     
-    // Add this computed property to filter out archived messages
+    // Add this computed property to filter messages based on archive state
     var activeMessages: [Message] {
         messages.filter { !$0.isArchived }
     }
     
+    // Add this computed property to get archived messages
+    var archivedMessages: [Message] {
+        messages.filter { $0.isArchived }
+    }
+    
     func archiveMessage(_ message: Message) {
-        if let index = messages.firstIndex(where: { $0.id == message.id }) {
-            var updatedMessage = message
-            updatedMessage.isArchived = !message.isArchived // Toggle archive state
-            updatedMessage.isRead = true  // Mark archived messages as read
-            messages[index] = updatedMessage
-            saveState()
-            objectWillChange.send()
+        // Find all messages with the same senderId
+        let threadMessages = messages.filter { $0.senderId == message.senderId }
+        
+        // Toggle the archive state based on the first message's current state
+        let newArchiveState = !message.isArchived
+        
+        // Create a new array to hold updated messages
+        var updatedMessages = messages
+        
+        // Update all messages in the thread
+        for threadMessage in threadMessages {
+            if let index = updatedMessages.firstIndex(where: { $0.id == threadMessage.id }) {
+                updatedMessages[index].isArchived = newArchiveState
+                updatedMessages[index].isRead = true  // Mark all messages in thread as read when archived
+            }
         }
+        
+        // Update messages array with the new array
+        messages = updatedMessages
+        
+        // Save state and notify observers
+        saveState()
+        objectWillChange.send()
     }
 }
 
 // Structure to represent saved game data
 struct SavedGameState: Codable {
+    let events: [GameEvent]
+    let eventLog: [String]
+    let posts: [Post]
     let player: Player
     let goal: Goal?
     let transactions: [Transaction]
@@ -1127,4 +1140,15 @@ struct SavedGameState: Codable {
     let hasQuitJob: Bool
     let profile: Profile?
     let lastRecordedMonth: Date?
+}
+
+// Add loadState function after the GameState class declaration but before SavedGameState struct
+extension GameState {
+    private func loadState() -> SavedGameState? {
+        guard let savedData = UserDefaults.standard.data(forKey: "gameState"),
+              let decoded = try? JSONDecoder().decode(SavedGameState.self, from: savedData) else {
+            return nil
+        }
+        return decoded
+    }
 } 

@@ -29,20 +29,21 @@ struct AccountDetailView: View {
     private var monthlyTransactions: [MonthlyTransactions] {
         let calendar = Calendar.current
         let grouped = Dictionary(grouping: gameState.transactions) { transaction in
-            calendar.startOfMonth(for: transaction.date)
+            calendar.startOfMonth(from: transaction.date)
         }
         
         return grouped.map { date, transactions in
             MonthlyTransactions(month: date, transactions: transactions)
         }.sorted { $0.month > $1.month }
     }
-}
-
-// Helper to get start of month
-extension Calendar {
-    func startOfMonth(for date: Date) -> Date {
-        let components = dateComponents([.year, .month], from: date)
-        return self.date(from: components) ?? date
+    
+    private func formatDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let startOfCurrentMonth = calendar.startOfMonth(from: date)
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: startOfCurrentMonth)
     }
 }
 

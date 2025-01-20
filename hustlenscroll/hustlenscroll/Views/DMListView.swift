@@ -4,50 +4,63 @@ struct DMListView: View {
     @EnvironmentObject var gameState: GameState
     @State private var selectedThread: MessageThread?
     @State private var showArchived = false
+    @State private var listUpdateTrigger = false  // Add this to force list updates
     
     // Group messages by sender
     var messageThreads: [MessageThread] {
+        // When showArchived is true, show all messages. When false, only show active messages
         let filteredMessages = showArchived ? gameState.messages : gameState.activeMessages
-        return Dictionary(grouping: filteredMessages) { $0.senderId }
+        
+        // First group messages by sender
+        let threads = Dictionary(grouping: filteredMessages) { $0.senderId }
             .map { senderId, messages in
+                // Sort messages within each thread by timestamp, most recent first
                 let sortedMessages = messages.sorted { $0.timestamp > $1.timestamp }
+                let latestMessage = sortedMessages.first
+                
                 return MessageThread(
                     senderId: senderId,
-                    senderName: messages[0].senderName,
-                    senderRole: messages[0].senderRole,
+                    senderName: latestMessage?.senderName ?? messages[0].senderName,
+                    senderRole: latestMessage?.senderRole ?? messages[0].senderRole,
                     messageIds: sortedMessages.map { $0.id },
                     hasUnread: messages.contains { !$0.isRead },
-                    lastMessageTimestamp: sortedMessages.first?.timestamp ?? Date.distantPast,
-                    isArchived: messages[0].isArchived
+                    lastMessageTimestamp: latestMessage?.timestamp ?? Date.distantPast,
+                    isArchived: latestMessage?.isArchived ?? messages[0].isArchived
                 )
             }
-            .sorted { $0.lastMessageTimestamp > $1.lastMessageTimestamp }
+        
+        // Then sort threads by their most recent message timestamp
+        return threads.sorted { $0.lastMessageTimestamp > $1.lastMessageTimestamp }
     }
     
     var body: some View {
         NavigationStack {
             List {
-                ForEach(messageThreads) { thread in
+                ForEach(messageThreads, id: \.id) { thread in
                     NavigationLink(value: thread) {
                         MessageThreadRow(gameState: gameState, thread: thread)
                     }
                     .swipeActions(edge: .trailing) {
                         Button(role: .destructive) {
-                            // Archive all messages in the thread
-                            for messageId in thread.messageIds {
-                                if let message = gameState.messages.first(where: { $0.id == messageId }) {
+                            // Get the first message of the thread and archive it
+                            if let firstMessageId = thread.messageIds.first,
+                               let message = gameState.messages.first(where: { $0.id == firstMessageId }) {
+                                withAnimation(.easeInOut(duration: 0.3)) {
                                     gameState.archiveMessage(message)
+                                    listUpdateTrigger.toggle()  // Force list update
                                 }
                             }
                         } label: {
                             Label(thread.isArchived ? "Unarchive" : "Archive", 
                                   systemImage: thread.isArchived ? "tray.and.arrow.up" : "archivebox")
                         }
+                        .tint(.red)
                     }
                 }
+                .animation(.easeInOut(duration: 0.3), value: listUpdateTrigger)
                 
                 Section {
-                    Toggle(isOn: $showArchived) {
+                    Toggle(isOn: $showArchived.animation()) {
                         HStack {
                             Image(systemName: "archivebox")
                                 .foregroundColor(.gray)
@@ -95,6 +108,7 @@ struct MessageThreadRow: View {
                 HStack {
                     Text(thread.senderName)
                         .font(.headline)
+                        .foregroundColor(.primary)
                     Spacer()
                     Text(formattedTimestamp)
                         .font(.caption)
@@ -107,7 +121,7 @@ struct MessageThreadRow: View {
                     Text(message.content)
                         .font(.subheadline)
                         .lineLimit(1)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)
                 }
             }
             
@@ -118,7 +132,6 @@ struct MessageThreadRow: View {
             }
         }
         .padding(.vertical, 4)
-        .opacity(thread.isArchived ? 0.6 : 1.0)
     }
 }
 

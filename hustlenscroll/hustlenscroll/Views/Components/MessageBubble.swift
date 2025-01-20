@@ -15,8 +15,9 @@ struct MessageBubble: View {
             
             // Message content that takes remaining space
             VStack(alignment: .leading, spacing: 8) {
-                // Message content only (removed sender name)
+                // Message content
                 Text(message.content)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Color.gray.opacity(0.1))
@@ -92,6 +93,8 @@ struct MessageBubble: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowInvestmentPurchase"))) { notification in
             if let asset = notification.userInfo?["asset"] as? Asset {
                 selectedAsset = asset
