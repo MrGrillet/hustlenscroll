@@ -3,6 +3,17 @@ import SwiftUI
 struct BankView: View {
     @EnvironmentObject var gameState: GameState
     
+    private let currencyFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+    
+    private func formatCurrency(_ value: Double) -> String {
+        return currencyFormatter.string(from: NSNumber(value: value)) ?? "$0.00"
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -24,9 +35,9 @@ struct BankView: View {
                                     .bold()
                                     .padding(.bottom, 5)
                                 
-                                InfoRow(title: "Balance", value: String(format: "$%.2f", gameState.currentPlayer.bankBalance))
-                                InfoRow(title: "Monthly Income", value: String(format: "$%.2f", gameState.currentPlayer.monthlySalary))
-                                InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", gameState.currentPlayer.monthlyExpenses))
+                                InfoRow(title: "Balance", value: formatCurrency(gameState.currentPlayer.bankBalance))
+                                InfoRow(title: "Monthly Income", value: formatCurrency(gameState.currentPlayer.monthlySalary))
+                                InfoRow(title: "Monthly Expenses", value: formatCurrency(gameState.currentPlayer.monthlyExpenses))
                             }
                         }
                         .padding()
@@ -35,7 +46,7 @@ struct BankView: View {
                         
                         // Savings Account
                         NavigationLink {
-                            AccountDetailView(accountType: .savings)
+                            SavingsAccountView()
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Savings Account")
@@ -43,9 +54,7 @@ struct BankView: View {
                                     .bold()
                                     .padding(.bottom, 5)
                                 
-                                InfoRow(title: "Balance", value: String(format: "$%.2f", gameState.currentPlayer.savingsBalance))
-                                InfoRow(title: "Monthly Income", value: String(format: "$%.2f", gameState.currentPlayer.monthlySalary))
-                                InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", gameState.currentPlayer.monthlyExpenses))
+                                InfoRow(title: "Balance", value: formatCurrency(gameState.currentPlayer.savingsBalance))
                             }
                         }
                         .padding()
@@ -54,7 +63,7 @@ struct BankView: View {
                         
                         // Credit Card
                         NavigationLink {
-                            AccountDetailView(accountType: .creditCard)
+                            CreditCardView()
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Credit Card")
@@ -62,9 +71,9 @@ struct BankView: View {
                                     .bold()
                                     .padding(.bottom, 5)
                                 
-                                InfoRow(title: "Balance", value: String(format: "$%.2f", gameState.creditCardBalance))
-                                InfoRow(title: "Credit Limit", value: String(format: "$%.2f", gameState.creditLimit))
-                                InfoRow(title: "Available Credit", value: String(format: "$%.2f", gameState.creditLimit - gameState.creditCardBalance))
+                                InfoRow(title: "Balance", value: formatCurrency(gameState.creditCardBalance))
+                                InfoRow(title: "Credit Limit", value: formatCurrency(gameState.creditLimit))
+                                InfoRow(title: "Available Credit", value: formatCurrency(gameState.creditLimit - gameState.creditCardBalance))
                             }
                         }
                         .padding()
@@ -90,8 +99,8 @@ struct BankView: View {
                                     .bold()
                                     .padding(.bottom, 5)
                                 
-                                InfoRow(title: "Total Value", value: String(format: "$%.2f", gameState.cryptoPortfolio.totalValue))
-                                InfoRow(title: "24h Change", value: String(format: "$%.2f", gameState.cryptoPortfolio.totalProfitLoss))
+                                InfoRow(title: "Total Value", value: formatCurrency(gameState.cryptoPortfolio.totalValue))
+                                InfoRow(title: "24h Change", value: formatCurrency(gameState.cryptoPortfolio.totalProfitLoss))
                             }
                         }
                         .padding()
@@ -108,8 +117,8 @@ struct BankView: View {
                                     .bold()
                                     .padding(.bottom, 5)
                                 
-                                InfoRow(title: "Total Value", value: String(format: "$%.2f", gameState.equityPortfolio.totalValue))
-                                InfoRow(title: "24h Change", value: String(format: "$%.2f", gameState.equityPortfolio.totalProfitLoss))
+                                InfoRow(title: "Total Value", value: formatCurrency(gameState.equityPortfolio.totalValue))
+                                InfoRow(title: "24h Change", value: formatCurrency(gameState.equityPortfolio.totalProfitLoss))
                             }
                         }
                         .padding()
@@ -128,7 +137,7 @@ struct BankView: View {
                             
                             ForEach(gameState.activeBusinesses) { business in
                                 NavigationLink {
-                                    AccountDetailView(accountType: .business)
+                                    BusinessAccountView(business: business)
                                 } label: {
                                     VStack(alignment: .leading, spacing: 10) {
                                         Text(business.title)
@@ -136,9 +145,15 @@ struct BankView: View {
                                             .bold()
                                             .padding(.bottom, 5)
                                         
-                                        InfoRow(title: "Business Checking", value: String(format: "$%.2f", business.monthlyCashflow))
-                                        InfoRow(title: "Monthly Revenue", value: String(format: "$%.2f", business.monthlyRevenue))
-                                        InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", business.monthlyExpenses))
+                                        InfoRow(title: "Business Checking", value: formatCurrency(business.monthlyCashflow))
+                                        InfoRow(title: "Monthly Revenue", value: formatCurrency(business.monthlyRevenue))
+                                        InfoRow(title: "Monthly Expenses", value: formatCurrency(business.monthlyExpenses))
+                                        
+                                        Divider()
+                                            .padding(.vertical, 5)
+                                        
+                                        InfoRow(title: "Current Exit Multiple", value: String(format: "%.1fx", business.currentExitMultiple))
+                                        InfoRow(title: "Current Exit Value", value: formatCurrency(business.currentExitValue))
                                     }
                                 }
                                 .padding()

@@ -13,9 +13,14 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable {
     let setupCost: Double
     let potentialSaleMultiple: Double
     let revenueShare: Double
+    var currentExitMultiple: Double
     
     var monthlyCashflow: Double {
         monthlyRevenue - monthlyExpenses
+    }
+    
+    var currentExitValue: Double {
+        monthlyCashflow * 12 * currentExitMultiple
     }
     
     enum OpportunitySource: String, Codable {
@@ -47,7 +52,8 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable {
         setupCost: Double,
         potentialSaleMultiple: Double,
         revenueShare: Double = 100.0,
-        type: EventType = .opportunity
+        type: EventType = .opportunity,
+        currentExitMultiple: Double? = nil
     ) {
         self.id = id
         self.title = title
@@ -60,5 +66,6 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable {
         self.setupCost = setupCost
         self.potentialSaleMultiple = potentialSaleMultiple
         self.revenueShare = revenueShare
+        self.currentExitMultiple = currentExitMultiple ?? potentialSaleMultiple
     }
 } 

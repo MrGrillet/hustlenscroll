@@ -46,6 +46,8 @@ class GameState: ObservableObject {
     @Published var hasQuitJob: Bool = false
     @Published var activeTrendingTopics: [TrendingTopic] = []
     @Published var lastRecordedMonth: Date?
+    @Published var showingExitOpportunity: BusinessOpportunity?
+    @Published var currentMarketUpdate: MarketUpdate?
     
     var initialMessages: [Message] {
         // Create a fixed date for initial messages - Jan 1, 2024
@@ -105,6 +107,8 @@ class GameState: ObservableObject {
         self.playerGoal = nil
         self.profile = nil
         self.lastRecordedMonth = nil
+        self.showingExitOpportunity = nil
+        self.currentMarketUpdate = nil
         
         // Try to load saved state
         if let savedData = UserDefaults.standard.data(forKey: "gameState"),
@@ -126,6 +130,8 @@ class GameState: ObservableObject {
             self.hasQuitJob = decoded.hasQuitJob
             self.profile = decoded.profile
             self.lastRecordedMonth = decoded.lastRecordedMonth
+            self.showingExitOpportunity = decoded.showingExitOpportunity
+            self.currentMarketUpdate = decoded.currentMarketUpdate
             
             // Only add initial messages if we don't have any
             if messages.isEmpty {
@@ -195,7 +201,9 @@ class GameState: ObservableObject {
             canQuitJob: canQuitJob,
             hasQuitJob: hasQuitJob,
             profile: profile,
-            lastRecordedMonth: lastRecordedMonth
+            lastRecordedMonth: lastRecordedMonth,
+            showingExitOpportunity: showingExitOpportunity,
+            currentMarketUpdate: currentMarketUpdate
         )
         
         if let encoded = try? JSONEncoder().encode(state) {
@@ -227,6 +235,8 @@ class GameState: ObservableObject {
         eventLog = []
         posts = []
         lastRecordedMonth = nil
+        showingExitOpportunity = nil
+        currentMarketUpdate = nil
         
         // Add initial messages from mentor
         messages = initialMessages
@@ -1117,6 +1127,151 @@ class GameState: ObservableObject {
         saveState()
         objectWillChange.send()
     }
+    
+    // Add this function to apply market updates
+    func applyMarketUpdate(_ update: MarketUpdate) {
+        currentMarketUpdate = update
+        
+        // Create the market update post
+        let post = Post(
+            author: "MarketWatch",
+            role: "Market Analysis",
+            content: update.description,
+            isSponsored: true
+        )
+        posts.insert(post, at: 0)
+        
+        // Apply updates
+        for updateItem in update.updates {
+            switch updateItem.type {
+            case .crypto:
+                applyCryptoUpdate(symbol: updateItem.symbol, change: updateItem.priceChange)
+            case .stock:
+                applyStockUpdate(symbol: updateItem.symbol, change: updateItem.priceChange)
+            case .startup:
+                applyStartupUpdate(change: updateItem.exitMultipleChange ?? 0)
+            }
+        }
+        
+        // Check for exit opportunities
+        checkStartupExitOpportunities()
+        
+        saveState()
+        objectWillChange.send()
+    }
+    
+    private func applyCryptoUpdate(symbol: String, change: Double) {
+        if let index = cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+            let asset = cryptoPortfolio.assets[index]
+            let newPrice = asset.currentPrice * (1 + change)
+            cryptoPortfolio.assets[index] = Asset(
+                symbol: asset.symbol,
+                name: asset.name,
+                quantity: asset.quantity,
+                currentPrice: newPrice,
+                purchasePrice: asset.purchasePrice,
+                type: .crypto
+            )
+        }
+    }
+    
+    private func applyStockUpdate(symbol: String, change: Double) {
+        if let index = equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+            let asset = equityPortfolio.assets[index]
+            let newPrice = asset.currentPrice * (1 + change)
+            equityPortfolio.assets[index] = Asset(
+                symbol: asset.symbol,
+                name: asset.name,
+                quantity: asset.quantity,
+                currentPrice: newPrice,
+                purchasePrice: asset.purchasePrice,
+                type: .stock
+            )
+        }
+    }
+    
+    private func applyStartupUpdate(change: Double) {
+        for i in 0..<activeBusinesses.count {
+            var business = activeBusinesses[i]
+            business.currentExitMultiple += change
+            // Ensure multiple doesn't go below 1
+            business.currentExitMultiple = max(1.0, business.currentExitMultiple)
+            activeBusinesses[i] = business
+        }
+    }
+    
+    private func checkStartupExitOpportunities() {
+        for business in activeBusinesses {
+            if business.currentExitMultiple >= business.potentialSaleMultiple * 1.5 {
+                // Present exit opportunity
+                showingExitOpportunity = business
+                
+                // Add message about exit opportunity
+                let exitMessage = Message(
+                    senderId: "exit_advisor",
+                    senderName: "Sarah Chen",
+                    senderRole: "M&A Advisor",
+                    timestamp: Date(),
+                    content: """
+                    🔥 Hot Exit Opportunity for \(business.title)!
+                    
+                    Current valuation: $\(Int(business.currentExitValue))
+                    Exit Multiple: \(String(format: "%.1fx", business.currentExitMultiple)) annual cash flow
+                    
+                    This is significantly above our target exit multiple of \(String(format: "%.1fx", business.potentialSaleMultiple)). 
+                    Would you like to explore selling the business at this valuation?
+                    """,
+                    isRead: false
+                )
+                messages.append(exitMessage)
+                break  // Only show one exit opportunity at a time
+            }
+        }
+    }
+    
+    func sellBusiness(_ business: BusinessOpportunity) {
+        // Calculate sale proceeds
+        let saleProceeds = business.currentExitValue * (business.revenueShare / 100.0)
+        
+        // Add proceeds to bank balance
+        currentPlayer.bankBalance += saleProceeds
+        
+        // Remove business from active businesses
+        activeBusinesses.removeAll { $0.id == business.id }
+        
+        // Record transaction
+        transactions.append(Transaction(
+            date: Date(),
+            description: "Sale of \(business.title)",
+            amount: saleProceeds,
+            isIncome: true
+        ))
+        
+        // Add confirmation message
+        let confirmationMessage = Message(
+            senderId: "exit_advisor",
+            senderName: "Sarah Chen",
+            senderRole: "M&A Advisor",
+            timestamp: Date(),
+            content: """
+            🎉 Congratulations! Sale of \(business.title) completed!
+            
+            Sale Price: $\(Int(saleProceeds))
+            Exit Multiple: \(String(format: "%.1fx", business.currentExitMultiple)) annual cash flow
+            
+            The funds have been deposited into your account.
+            """,
+            isRead: false
+        )
+        messages.append(confirmationMessage)
+        
+        // Reset exit opportunity
+        showingExitOpportunity = nil
+        
+        // Update state
+        saveState()
+        objectWillChange.send()
+    }
 }
 
 // Structure to represent saved game data
@@ -1140,6 +1295,8 @@ struct SavedGameState: Codable {
     let hasQuitJob: Bool
     let profile: Profile?
     let lastRecordedMonth: Date?
+    let showingExitOpportunity: BusinessOpportunity?
+    let currentMarketUpdate: MarketUpdate?
 }
 
 // Add loadState function after the GameState class declaration but before SavedGameState struct
