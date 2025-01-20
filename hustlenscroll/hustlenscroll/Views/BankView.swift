@@ -4,7 +4,7 @@ struct BankView: View {
     @EnvironmentObject var gameState: GameState
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 30) {
                     // Personal Accounts Section

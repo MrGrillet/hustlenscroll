@@ -95,81 +95,13 @@ struct MessageThreadRow: View {
     }
 }
 
-struct MessageThreadView: View {
-    @EnvironmentObject var gameState: GameState
-    let thread: MessageThread
-    @State private var scrollProxy: ScrollViewProxy?
-    @State private var lastMessageId: UUID?
-    
-    var messages: [Message] {
-        thread.messageIds.compactMap { id in
-            gameState.messages.first { $0.id == id }
-        }
-    }
-    
-    var body: some View {
-        ScrollView {
-            ScrollViewReader { proxy in
-                LazyVStack(spacing: 16) {
-                    ForEach(messages) { message in
-                        MessageBubble(message: message)
-                            .id(message.id)
-                    }
-                }
-                .padding()
-                .onAppear {
-                    scrollProxy = proxy
-                    lastMessageId = messages.last?.id
-                    
-                    // Mark all messages as read immediately when view appears
-                    DispatchQueue.main.async {
-                        for message in messages {
-                            if !message.isRead {
-                                gameState.markMessageAsRead(message)
-                            }
-                        }
-                    }
-                    
-                    // Scroll to bottom with animation
-                    if let lastId = lastMessageId {
-                        withAnimation {
-                            proxy.scrollTo(lastId, anchor: .bottom)
-                        }
-                    }
-                }
-                .onChange(of: messages.count) { oldCount, newCount in
-                    // If new messages arrive, scroll to the new last message
-                    // and mark them as read
-                    if let lastId = messages.last?.id {
-                        withAnimation {
-                            proxy.scrollTo(lastId, anchor: .bottom)
-                        }
-                        // Mark any new unread messages as read
-                        for message in messages {
-                            if !message.isRead {
-                                gameState.markMessageAsRead(message)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .navigationTitle(thread.senderName)
-    }
-}
-
 struct MessageThread: Identifiable, Hashable {
     let id: String
     let senderId: String
     let senderName: String
     let senderRole: String
     let messageIds: [UUID]
-    
-    // Make hasUnread a computed property that checks GameState
-    var hasUnread: Bool {
-        // This will be set by the view that has access to GameState
-        false
-    }
+    let hasUnread: Bool
     
     // Implement hash(into:) for Hashable conformance
     func hash(into hasher: inout Hasher) {
@@ -187,5 +119,6 @@ struct MessageThread: Identifiable, Hashable {
         self.senderName = senderName
         self.senderRole = senderRole
         self.messageIds = messageIds
+        self.hasUnread = hasUnread
     }
 } 

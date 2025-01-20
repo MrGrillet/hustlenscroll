@@ -15,12 +15,12 @@ enum EventType: String, Codable {
 
 // MARK: - Market Impact
 enum MarketImpact: Codable {
-    case cryptoMarket(percentChange: Double)
-    case stockMarket(percentChange: Double)
-    case specificAsset(symbol: String, percentChange: Double)
+    case cryptoMarket(price_today: Double)
+    case stockMarket(price_today: Double)
+    case specificAsset(symbol: String, price_today: Double)
     
     private enum CodingKeys: String, CodingKey {
-        case type, percentChange, symbol
+        case type, symbol, price_today
     }
     
     private enum ImpactType: String, Codable {
@@ -30,32 +30,32 @@ enum MarketImpact: Codable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .cryptoMarket(let percentChange):
+        case .cryptoMarket(let price_today):
             try container.encode(ImpactType.cryptoMarket, forKey: .type)
-            try container.encode(percentChange, forKey: .percentChange)
-        case .stockMarket(let percentChange):
+            try container.encode(price_today, forKey: .price_today)
+        case .stockMarket(let price_today):
             try container.encode(ImpactType.stockMarket, forKey: .type)
-            try container.encode(percentChange, forKey: .percentChange)
-        case .specificAsset(let symbol, let percentChange):
+            try container.encode(price_today, forKey: .price_today)
+        case .specificAsset(let symbol, let price_today):
             try container.encode(ImpactType.specificAsset, forKey: .type)
             try container.encode(symbol, forKey: .symbol)
-            try container.encode(percentChange, forKey: .percentChange)
+            try container.encode(price_today, forKey: .price_today)
         }
     }
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(ImpactType.self, forKey: .type)
-        let percentChange = try container.decode(Double.self, forKey: .percentChange)
+        let price_today = try container.decode(Double.self, forKey: .price_today)
         
         switch type {
         case .cryptoMarket:
-            self = .cryptoMarket(percentChange: percentChange)
+            self = .cryptoMarket(price_today: price_today)
         case .stockMarket:
-            self = .stockMarket(percentChange: percentChange)
+            self = .stockMarket(price_today: price_today)
         case .specificAsset:
             let symbol = try container.decode(String.self, forKey: .symbol)
-            self = .specificAsset(symbol: symbol, percentChange: percentChange)
+            self = .specificAsset(symbol: symbol, price_today: price_today)
         }
     }
 }
@@ -75,27 +75,51 @@ struct TrendingTopic: GameEventProtocol, Identifiable, Codable {
     static let predefinedTopics: [TrendingTopic] = [
         TrendingTopic(
             id: UUID(),
-            title: "XYZ Coin Crash",
-            description: "🚨 XYZ coin plummets 99.9% as founder disappears with funds",
-            impact: .specificAsset(symbol: "XYZ", percentChange: -0.999)
+            title: "Bitcoin Crash",
+            description: "🚨 Bitcoin plummets to $1,000 as founder disappears with funds",
+            impact: .specificAsset(symbol: "BTC", price_today: 1000.0)
         ),
         TrendingTopic(
             id: UUID(),
-            title: "Tech Stock Rally",
-            description: "📈 Tech stocks surge on strong earnings reports",
-            impact: .stockMarket(percentChange: 0.15)
+            title: "Bitcoin BOOOMMMM",
+            description: "🚨 Bitcoin plummets to $1,000 as founder disappears with funds",
+            impact: .specificAsset(symbol: "BTC", price_today: 50000.0)
         ),
         TrendingTopic(
             id: UUID(),
-            title: "Crypto Market Surge",
-            description: "🚀 Cryptocurrency market sees widespread gains",
-            impact: .cryptoMarket(percentChange: 0.25)
+            title: "Bitcoin growing nicely",
+            description: "🚨 Bitcoin plummets to $1,000 as founder disappears with funds",
+            impact: .specificAsset(symbol: "BTC", price_today: 9000.0)
         ),
         TrendingTopic(
             id: UUID(),
-            title: "SaaS Valuations Drop",
-            description: "📉 SaaS company valuations drop amid market uncertainty",
-            impact: .stockMarket(percentChange: -0.20)
+            title: "Ethereum Crash",
+            description: "🚨 Ethereum drops to $100 as founder disappears with funds",
+            impact: .specificAsset(symbol: "ETH", price_today: 100.0)
+        ),
+        TrendingTopic(
+            id: UUID(),
+            title: "Ethereum growing nicely",
+            description: "🚨 Ethereum drops to $100 as founder disappears with funds",
+            impact: .specificAsset(symbol: "ETH", price_today: 5000.0)
+        ),
+        TrendingTopic(
+            id: UUID(),
+            title: "Ethereum growing BOOOMMMM",
+            description: "🚨 Ethereum drops to $100 as founder disappears with funds",
+            impact: .specificAsset(symbol: "ETH", price_today: 90000.0)
+        ),
+        TrendingTopic(
+            id: UUID(),
+            title: "Nvidia growing BOOOMMMM",
+            description: "🚨 Nvidia grows to $10000 as founder disappears with funds",
+            impact: .specificAsset(symbol: "NVDA", price_today: 10000.0)
+        ),
+        TrendingTopic(
+            id: UUID(),
+            title: "Nvidia growing Crashing",
+            description: "🚨 Nvidia drops to $100 as founder disappears with funds",
+            impact: .specificAsset(symbol: "NVDA", price_today: 1000.0)
         )
     ]
 }

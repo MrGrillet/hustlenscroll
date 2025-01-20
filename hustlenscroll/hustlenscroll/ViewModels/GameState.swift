@@ -35,7 +35,6 @@ class GameState: ObservableObject {
     @Published var hasQuitJob: Bool = false
     @Published var activeTrendingTopics: [TrendingTopic] = []
     @Published var lastRecordedMonth: Date?
-    @Published var lastViewedAccount: AccountType = .checking
     
     private func createInitialMentorMessages() -> [Message] {
         return [
@@ -485,11 +484,14 @@ class GameState: ObservableObject {
     
     func markMessageAsRead(_ message: Message) {
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
-            var updatedMessage = message
-            updatedMessage.isRead = true
-            messages[index] = updatedMessage
-            saveState()  // Save the game state after marking message as read
-            objectWillChange.send()
+            // Only update if message is actually unread
+            if !messages[index].isRead {
+                var updatedMessage = message
+                updatedMessage.isRead = true
+                messages[index] = updatedMessage
+                saveState()  // Save the game state after marking message as read
+                objectWillChange.send()
+            }
         }
     }
     
@@ -1054,6 +1056,12 @@ class GameState: ObservableObject {
         ))
     }
     
+    // Update the unreadMessageCount to only count unread active messages
+    var unreadMessageCount: Int {
+        let count = activeMessages.filter { !$0.isRead }.count
+        return count
+    }
+    
     // Add this computed property to filter out archived messages
     var activeMessages: [Message] {
         messages.filter { !$0.isArchived }
@@ -1063,15 +1071,11 @@ class GameState: ObservableObject {
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
             var updatedMessage = message
             updatedMessage.isArchived = true
+            updatedMessage.isRead = true  // Mark archived messages as read
             messages[index] = updatedMessage
             saveState()
             objectWillChange.send()
         }
-    }
-    
-    // Update the unreadMessageCount to only count unread active messages
-    var unreadMessageCount: Int {
-        activeMessages.filter { !$0.isRead }.count
     }
 }
 
