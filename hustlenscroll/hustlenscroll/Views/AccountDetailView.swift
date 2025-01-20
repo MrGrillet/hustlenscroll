@@ -5,10 +5,12 @@ enum AccountType: String {
     case savings = "Savings Account"
     case creditCard = "Credit Card"
     case business = "Business Account"
+    case crypto = "Crypto Portfolio"
+    case equities = "Equities Portfolio"
 }
 
 struct AccountDetailView: View {
-    @ObservedObject var gameState: GameState
+    @EnvironmentObject var gameState: GameState
     let accountType: AccountType
     
     var body: some View {
@@ -156,8 +158,7 @@ struct MonthlyTransactionCard: View {
 
 struct AccountDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {
-            AccountDetailView(gameState: GameState(), accountType: .checking)
-        }
+        AccountDetailView(accountType: .checking)
+            .environmentObject(GameState())
     }
 } 

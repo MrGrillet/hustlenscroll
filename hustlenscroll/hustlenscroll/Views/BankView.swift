@@ -7,10 +7,6 @@ struct BankView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 30) {
-                    Text("Quantum Bank")
-                        .font(.largeTitle)
-                        .padding()
-                    
                     // Personal Accounts Section
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Personal Accounts")
@@ -20,7 +16,7 @@ struct BankView: View {
                         
                         // Checking Account
                         NavigationLink {
-                            AccountDetailView(gameState: gameState, accountType: .checking)
+                            AccountDetailView(accountType: .checking)
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Checking Account")
@@ -39,7 +35,7 @@ struct BankView: View {
                         
                         // Savings Account
                         NavigationLink {
-                            AccountDetailView(gameState: gameState, accountType: .savings)
+                            AccountDetailView(accountType: .savings)
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Savings Account")
@@ -58,7 +54,7 @@ struct BankView: View {
                         
                         // Credit Card
                         NavigationLink {
-                            AccountDetailView(gameState: gameState, accountType: .creditCard)
+                            AccountDetailView(accountType: .creditCard)
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Credit Card")
@@ -66,9 +62,9 @@ struct BankView: View {
                                     .bold()
                                     .padding(.bottom, 5)
                                 
-                                InfoRow(title: "Balance", value: "$0.00")
-                                InfoRow(title: "Credit Limit", value: "$5,000.00")
-                                InfoRow(title: "Available Credit", value: "$5,000.00")
+                                InfoRow(title: "Balance", value: String(format: "$%.2f", gameState.creditCardBalance))
+                                InfoRow(title: "Credit Limit", value: String(format: "$%.2f", gameState.creditLimit))
+                                InfoRow(title: "Available Credit", value: String(format: "$%.2f", gameState.creditLimit - gameState.creditCardBalance))
                             }
                         }
                         .padding()
@@ -119,49 +115,31 @@ struct BankView: View {
                         .padding()
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(10)
-                        
-                        // Startups Portfolio
-                        if !gameState.activeBusinesses.isEmpty {
-                            NavigationLink {
-                                StartupsPortfolioView()
-                            } label: {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("Startup Investments")
-                                        .font(.title3)
-                                        .bold()
-                                        .padding(.bottom, 5)
-                                    
-                                    InfoRow(title: "Active Startups", value: "\(gameState.activeBusinesses.count)")
-                                    InfoRow(title: "Monthly Income", value: String(format: "$%.2f", gameState.totalMonthlyBusinessIncome))
-                                }
-                            }
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(10)
-                        }
                     }
                     .padding(.horizontal)
                     
                     // Business Accounts Section (if exists)
-                    if gameState.hasStartup {
-                        NavigationLink {
-                            AccountDetailView(gameState: gameState, accountType: .business)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 15) {
-                                Text("Business Accounts")
-                                    .font(.headline)
-                                    .foregroundColor(.gray)
-                                    .padding(.horizontal)
-                                
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("TechVenture Labs") // Example startup name
-                                        .font(.title3)
-                                        .bold()
-                                        .padding(.bottom, 5)
-                                    
-                                    InfoRow(title: "Business Checking", value: "$10,000.00")
-                                    InfoRow(title: "Monthly Revenue", value: "$0.00")
-                                    InfoRow(title: "Monthly Expenses", value: "$2,000.00")
+                    if !gameState.activeBusinesses.isEmpty {
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Business Accounts")
+                                .font(.headline)
+                                .foregroundColor(.gray)
+                                .padding(.horizontal)
+                            
+                            ForEach(gameState.activeBusinesses) { business in
+                                NavigationLink {
+                                    AccountDetailView(accountType: .business)
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Text(business.title)
+                                            .font(.title3)
+                                            .bold()
+                                            .padding(.bottom, 5)
+                                        
+                                        InfoRow(title: "Business Checking", value: String(format: "$%.2f", business.monthlyCashflow))
+                                        InfoRow(title: "Monthly Revenue", value: String(format: "$%.2f", business.monthlyRevenue))
+                                        InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", business.monthlyExpenses))
+                                    }
                                 }
                                 .padding()
                                 .background(Color.gray.opacity(0.1))
@@ -170,10 +148,15 @@ struct BankView: View {
                         }
                         .padding(.horizontal)
                     }
-                    
-                    Spacer()
                 }
             }
+            .navigationTitle("Bank")
         }
+    }
+}
+
+struct BankView_Previews: PreviewProvider {
+    static var previews: some View {
+        BankView()
     }
 } 

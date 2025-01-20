@@ -324,21 +324,89 @@ struct PredefinedOpportunity {
         )
     ]
     
-    static let stockOpportunity = Asset(
-        symbol: "AMZN",
-        name: "Amazon.com Inc",
-        quantity: 0,
-        currentPrice: 170.0,
-        purchasePrice: 170.0,
-        type: .stock
-    )
+    static let stockOpportunities = [
+        Asset(
+            symbol: "AMZN",
+            name: "Amazon.com Inc",
+            quantity: 0,
+            currentPrice: 170.0,
+            purchasePrice: 170.0,
+            type: .stock
+        ),
+        Asset(
+            symbol: "AAPL",
+            name: "Apple Inc",
+            quantity: 0,
+            currentPrice: 190.0,
+            purchasePrice: 190.0,
+            type: .stock
+        ),
+        Asset(
+            symbol: "MSFT",
+            name: "Microsoft Corporation",
+            quantity: 0,
+            currentPrice: 420.0,
+            purchasePrice: 420.0,
+            type: .stock
+        ),
+        Asset(
+            symbol: "GOOGL",
+            name: "Alphabet Inc",
+            quantity: 0,
+            currentPrice: 150.0,
+            purchasePrice: 150.0,
+            type: .stock
+        ),
+        Asset(
+            symbol: "NVDA",
+            name: "NVIDIA Corporation",
+            quantity: 0,
+            currentPrice: 850.0,
+            purchasePrice: 850.0,
+            type: .stock
+        )
+    ]
     
-    static let cryptoOpportunity = Asset(
-        symbol: "XYZ",
-        name: "XYZ Coin",
-        quantity: 0,
-        currentPrice: 1.0,
-        purchasePrice: 1.0,
-        type: .crypto
-    )
+    static let cryptoOpportunities = [
+        Asset(
+            symbol: "BTC",
+            name: "Bitcoin",
+            quantity: 0,
+            currentPrice: 52000.0,
+            purchasePrice: 52000.0,
+            type: .crypto
+        ),
+        Asset(
+            symbol: "ETH",
+            name: "Ethereum",
+            quantity: 0,
+            currentPrice: 3200.0,
+            purchasePrice: 3200.0,
+            type: .crypto
+        ),
+        Asset(
+            symbol: "SOL",
+            name: "Solana",
+            quantity: 0,
+            currentPrice: 120.0,
+            purchasePrice: 120.0,
+            type: .crypto
+        ),
+        Asset(
+            symbol: "DOGE",
+            name: "Dogecoin",
+            quantity: 0,
+            currentPrice: 0.15,
+            purchasePrice: 0.15,
+            type: .crypto
+        ),
+        Asset(
+            symbol: "LINK",
+            name: "Chainlink",
+            quantity: 0,
+            currentPrice: 18.0,
+            purchasePrice: 18.0,
+            type: .crypto
+        )
+    ]
 } 

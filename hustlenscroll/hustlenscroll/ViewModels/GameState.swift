@@ -35,6 +35,7 @@ class GameState: ObservableObject {
     @Published var hasQuitJob: Bool = false
     @Published var activeTrendingTopics: [TrendingTopic] = []
     @Published var lastRecordedMonth: Date?
+    @Published var lastViewedAccount: AccountType = .checking
     
     private func createInitialMentorMessages() -> [Message] {
         return [
@@ -87,8 +88,24 @@ class GameState: ObservableObject {
     }
     
     init() {
+        // Initialize empty arrays and default values first
+        self.events = []
+        self.eventLog = []
+        self.posts = []
+        self.transactions = []
+        self.messages = []
+        self.activeBusinesses = []
+        self.cryptoPortfolio = CryptoPortfolio(assets: [])
+        self.equityPortfolio = EquityPortfolio(assets: [])
+        self.currentPlayer = Player(name: "", role: "")
+        self.playerGoal = nil
+        self.profile = nil
+        self.lastRecordedMonth = nil
+        
+        // Try to load saved state
         if let savedData = UserDefaults.standard.data(forKey: "gameState"),
            let decoded = try? JSONDecoder().decode(SavedGameState.self, from: savedData) {
+            // Load saved state
             self.currentPlayer = decoded.player
             self.playerGoal = decoded.goal
             self.transactions = decoded.transactions
@@ -105,23 +122,13 @@ class GameState: ObservableObject {
             self.hasQuitJob = decoded.hasQuitJob
             self.profile = decoded.profile
             self.lastRecordedMonth = decoded.lastRecordedMonth
-            self.events = []
-            self.eventLog = []
             
             // Only add initial messages if we don't have any
             if messages.isEmpty {
                 self.messages = createInitialMentorMessages()
             }
         } else {
-            // Initialize with default values for a new game
-            self.currentPlayer = Player(name: "", role: "")
-            self.events = []
-            self.eventLog = []
-            self.playerGoal = nil
-            self.profile = nil
-            self.lastRecordedMonth = nil
-            
-            // Add initial messages from mentor
+            // Add initial messages for new game
             self.messages = createInitialMentorMessages()
         }
         
@@ -157,12 +164,11 @@ class GameState: ObservableObject {
             )
         ]
         
-        // Initialize empty portfolios
-        self.cryptoPortfolio = CryptoPortfolio(assets: [])
-        self.equityPortfolio = EquityPortfolio(assets: [])
-        
         // Add initial filler posts
         self.posts = SampleContent.generateFillerPosts(count: 50)
+        
+        // Force a save to ensure everything is persisted
+        saveState()
     }
     
     func saveState() {
@@ -300,20 +306,43 @@ class GameState: ObservableObject {
         let profit = revenue - expenses
         businessProfitLoss = profit
         
+        // Record revenue as "Sales"
         if revenue > 0 {
             businessTransactions.append(Transaction(
                 date: date,
-                description: "Monthly Revenue",
+                description: "Sales Revenue",
                 amount: revenue,
                 isIncome: true
             ))
         }
         
+        // Break down expenses into categories
         if expenses > 0 {
+            let marketingExpense = expenses * 0.3  // 30% of expenses
+            let staffExpense = expenses * 0.5      // 50% of expenses
+            let hostingExpense = expenses * 0.2    // 20% of expenses
+            
+            // Record Marketing expense
             businessTransactions.append(Transaction(
                 date: date,
-                description: "Business Expenses",
-                amount: expenses,
+                description: "Marketing & Advertising",
+                amount: marketingExpense,
+                isIncome: false
+            ))
+            
+            // Record Staff expense
+            businessTransactions.append(Transaction(
+                date: date,
+                description: "Staff & Payroll",
+                amount: staffExpense,
+                isIncome: false
+            ))
+            
+            // Record Hosting expense
+            businessTransactions.append(Transaction(
+                date: date,
+                description: "Hosting & Infrastructure",
+                amount: hostingExpense,
                 isIncome: false
             ))
         }
@@ -414,6 +443,40 @@ class GameState: ObservableObject {
         ))
     }
     
+    func transferFromSavings(amount: Double) {
+        guard amount <= currentPlayer.savingsBalance else { return }
+        
+        currentPlayer.savingsBalance -= amount
+        currentPlayer.bankBalance += amount
+        
+        transactions.append(Transaction(
+            date: Date(),
+            description: "Transfer from Savings",
+            amount: amount,
+            isIncome: true  // Income for checking
+        ))
+        
+        saveState()
+        objectWillChange.send()
+    }
+    
+    func useCredit(amount: Double) {
+        guard amount <= (creditLimit - creditCardBalance) else { return }
+        
+        creditCardBalance += amount
+        currentPlayer.bankBalance += amount
+        
+        transactions.append(Transaction(
+            date: Date(),
+            description: "Credit Card Advance",
+            amount: amount,
+            isIncome: true  // Income for checking
+        ))
+        
+        saveState()
+        objectWillChange.send()
+    }
+    
     func setPlayerGoal(_ goal: Goal) {
         playerGoal = goal
         saveState()  // Save the game after setting the goal
@@ -475,8 +538,11 @@ class GameState: ObservableObject {
             isIncome: false
         ))
         
-        saveState()
+        // Force UI update
         objectWillChange.send()
+        
+        // Save state immediately
+        saveState()
     }
     
     func buyCrypto(symbol: String, name: String, quantity: Double, price: Double) {
@@ -524,8 +590,11 @@ class GameState: ObservableObject {
             isIncome: false
         ))
         
-        saveState()
+        // Force UI update
         objectWillChange.send()
+        
+        // Save state immediately
+        saveState()
     }
     
     var totalPassiveIncome: Double {
@@ -549,12 +618,27 @@ class GameState: ObservableObject {
         if !activeBusinesses.contains(where: { $0.id == opportunity.id }) {
             activeBusinesses.append(opportunity)
             
+            // Update startup properties
+            hasStartup = true
+            startupBalance = opportunity.setupCost
+            startupRevenue = opportunity.monthlyRevenue
+            startupExpenses = opportunity.monthlyExpenses
+            businessName = opportunity.title
+            
             // Record transaction
             transactions.append(Transaction(
                 date: Date(),
                 description: "Investment in \(opportunity.title)",
                 amount: opportunity.setupCost,
                 isIncome: false
+            ))
+            
+            // Add business transaction
+            businessTransactions.append(Transaction(
+                date: Date(),
+                description: "Initial Investment",
+                amount: opportunity.setupCost,
+                isIncome: true
             ))
             
             // Update monthly income
@@ -612,15 +696,17 @@ class GameState: ObservableObject {
         if accepted {
             switch opportunity.type {
             case .investment:
-                // Find the linked investment in the post
-                if let post = posts.first(where: { $0.linkedInvestment != nil }),
-                   let asset = post.linkedInvestment {
-                    // Buy one unit of the asset
-                    if asset.type == .crypto {
-                        buyCrypto(symbol: asset.symbol, name: asset.name, quantity: 1, price: asset.currentPrice)
-                    } else {
-                        buyStock(symbol: asset.symbol, name: asset.name, quantity: 1, price: asset.currentPrice)
-                    }
+                // Find the matching investment in the posts based on the opportunity title
+                if let post = posts.first(where: { 
+                    guard let investment = $0.linkedInvestment else { return false }
+                    return investment.name == opportunity.title
+                }), let asset = post.linkedInvestment {
+                    // Show investment purchase view with the correct asset
+                    NotificationCenter.default.post(
+                        name: NSNotification.Name("ShowInvestmentPurchase"),
+                        object: nil,
+                        userInfo: ["asset": asset]
+                    )
                 }
             default:
                 // Create a business opportunity from the message opportunity
@@ -808,10 +894,31 @@ class GameState: ObservableObject {
             return
         }
         
-        // Get a predefined business opportunity
-        let (opportunity, message) = size == .large ? 
-            PredefinedOpportunity.opportunities[0] : // Big deal
-            PredefinedOpportunity.opportunities[1]   // Small deal
+        // Filter opportunities by size
+        let opportunities = PredefinedOpportunity.opportunities.filter { opportunity in
+            if size == .large {
+                return opportunity.0.setupCost >= 50000
+            } else {
+                return opportunity.0.setupCost < 50000
+            }
+        }
+        
+        // Get a random opportunity of appropriate size
+        guard let (opportunity, message) = opportunities.randomElement() else { return }
+        
+        // Create a new instance with a unique ID
+        let newOpportunity = BusinessOpportunity(
+            id: UUID(), // New unique ID
+            title: opportunity.title,
+            description: opportunity.description,
+            source: opportunity.source,
+            opportunityType: opportunity.opportunityType,
+            monthlyRevenue: opportunity.monthlyRevenue,
+            monthlyExpenses: opportunity.monthlyExpenses,
+            setupCost: opportunity.setupCost,
+            potentialSaleMultiple: opportunity.potentialSaleMultiple,
+            revenueShare: opportunity.revenueShare
+        )
         
         // Add to feed as post
         let post = Post(
@@ -821,7 +928,7 @@ class GameState: ObservableObject {
             content: size == .large ? "🔥 Exciting Opportunity! DM for details!" : "💡 Interesting opportunity. DM me to learn more.",
             timestamp: Date(),
             isSponsored: size == .large,
-            linkedOpportunity: opportunity
+            linkedOpportunity: newOpportunity
         )
         posts.append(post)
         
@@ -832,15 +939,19 @@ class GameState: ObservableObject {
     private func createInvestmentOpportunity() -> (Asset, Message) {
         // 50-50 chance between stock and crypto
         if Bool.random() {
-            let asset = PredefinedOpportunity.stockOpportunity
+            // Get random stock from predefined list
+            let asset = PredefinedOpportunity.stockOpportunities.randomElement()!
+            let stockAnalyst = Bool.random() ? "Michael Roberts" : "Emma Thompson"
+            let stockRole = "Stock Market Analyst"
+            
             return (
                 asset,
                 Message(
                     senderId: UUID().uuidString,
-                    senderName: "StockPro",
-                    senderRole: "Stock Analyst",
+                    senderName: stockAnalyst,
+                    senderRole: stockRole,
                     timestamp: Date(),
-                    content: "💹 Amazon just released strong earnings! Consider adding to your portfolio.",
+                    content: "💹 \(asset.name) is showing strong technical signals. This could be a good entry point.",
                     opportunity: Opportunity(
                         title: asset.name,
                         description: "Add \(asset.name) (\(asset.symbol)) to your portfolio at the current price of $\(Int(asset.currentPrice)).",
@@ -853,15 +964,19 @@ class GameState: ObservableObject {
                 )
             )
         } else {
-            let asset = PredefinedOpportunity.cryptoOpportunity
+            // Get random crypto from predefined list
+            let asset = PredefinedOpportunity.cryptoOpportunities.randomElement()!
+            let cryptoAnalyst = Bool.random() ? "Alex Chen" : "Sarah Kim"
+            let cryptoRole = "Crypto Market Analyst"
+            
             return (
                 asset,
                 Message(
                     senderId: UUID().uuidString,
-                    senderName: "CryptoTrader",
-                    senderRole: "Crypto Analyst",
+                    senderName: cryptoAnalyst,
+                    senderRole: cryptoRole,
                     timestamp: Date(),
-                    content: "📈 \(asset.symbol) coin is showing strong momentum! Great time to invest.",
+                    content: "🚀 \(asset.name) is showing bullish momentum. Consider adding to your portfolio.",
                     opportunity: Opportunity(
                         title: asset.name,
                         description: "Add \(asset.name) (\(asset.symbol)) to your portfolio at the current price of $\(Int(asset.currentPrice)).",

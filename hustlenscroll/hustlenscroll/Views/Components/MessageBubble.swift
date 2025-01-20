@@ -3,6 +3,8 @@ import SwiftUI
 struct MessageBubble: View {
     let message: Message
     @EnvironmentObject var gameState: GameState
+    @State private var showingInvestmentPurchase = false
+    @State private var selectedAsset: Asset?
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -72,6 +74,17 @@ struct MessageBubble: View {
                     .foregroundColor(.gray)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowInvestmentPurchase"))) { notification in
+            if let asset = notification.userInfo?["asset"] as? Asset {
+                selectedAsset = asset
+                showingInvestmentPurchase = true
+            }
+        }
+        .sheet(isPresented: $showingInvestmentPurchase) {
+            if let asset = selectedAsset {
+                InvestmentPurchaseView(asset: asset)
+            }
         }
     }
     
