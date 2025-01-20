@@ -82,7 +82,8 @@ struct Post: Identifiable, Codable {
             monthlyRevenue: 12000,
             monthlyExpenses: 2000,
             setupCost: 0,
-            potentialSaleMultiple: 1.0
+            potentialSaleMultiple: 1.0,
+            symbol: "Dev Contract"
         ), linkedInvestment: nil),
         
         Post(id: UUID(), author: "startupCEO", role: "Founder", content: "Need a freelance developer for a quick project. Paying well! 💰", timestamp: Date(), isSponsored: true, linkedOpportunity: BusinessOpportunity(
@@ -93,7 +94,8 @@ struct Post: Identifiable, Codable {
             monthlyRevenue: 8000,
             monthlyExpenses: 1000,
             setupCost: 2000,
-            potentialSaleMultiple: 1.5
+            potentialSaleMultiple: 1.5,
+            symbol: "Dev Freelance"
         ), linkedInvestment: nil),
         
         // Trending Topics
@@ -105,7 +107,8 @@ struct Post: Identifiable, Codable {
             monthlyRevenue: 2000,
             monthlyExpenses: 500,
             setupCost: 5000,
-            potentialSaleMultiple: 2.0
+            potentialSaleMultiple: 2.0,
+            symbol: "Tech Training"
         ), linkedInvestment: nil),
         
         Post(id: UUID(), author: "marketWatch", role: "Market Analyst", content: "Tech stocks hitting all-time highs! 📊", timestamp: Date(), isSponsored: true, linkedOpportunity: nil, linkedInvestment: nil)

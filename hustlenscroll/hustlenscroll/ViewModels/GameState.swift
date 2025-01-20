@@ -688,6 +688,30 @@ class GameState: ObservableObject {
         }
     }
     
+    private func convertOpportunityType(_ type: Opportunity.OpportunityType) -> BusinessOpportunity.OpportunityType {
+        switch type {
+        case .startup:
+            return .startup
+        case .freelance:
+            return .smallBusiness
+        case .investment:
+            return .investment
+        }
+    }
+    
+    private func getSymbolForTitle(_ title: String) -> String {
+        if title.lowercased().contains("ai") && title.lowercased().contains("health") {
+            return "AI Health Tech"
+        } else if title.lowercased().contains("event") && title.lowercased().contains("booking") {
+            return "Event Platform"
+        } else if title.lowercased().contains("fitness") && title.lowercased().contains("app") {
+            return "Fitness App"
+        } else if title.lowercased().contains("developer") || title.lowercased().contains("dev") {
+            return "Dev Tool"
+        }
+        return title
+    }
+    
     func handleOpportunityResponse(message: Message, accepted: Bool) {
         guard let opportunity = message.opportunity else { return }
         
@@ -698,23 +722,6 @@ class GameState: ObservableObject {
                 updatedMessage.isRead = true
                 updatedMessage.opportunityStatus = accepted ? .accepted : .rejected
                 self.messages[index] = updatedMessage
-                self.objectWillChange.send()
-                
-                // Create and add response message with explicit isRead = false
-                let responseMessage = Message(
-                    id: UUID(),
-                    senderId: message.senderId,
-                    senderName: message.senderName,
-                    senderRole: message.senderRole,
-                    timestamp: Date(),
-                    content: accepted ? "Great choice! Let's get started. I'll send you more details shortly." : SampleContent.getRandomRejectionResponse(),
-                    opportunity: nil,
-                    isRead: false  // Explicitly set as unread
-                )
-                self.messages.append(responseMessage)
-                
-                // Save state after adding response message
-                self.saveState()
                 
                 if accepted {
                     switch opportunity.type {
@@ -743,7 +750,8 @@ class GameState: ObservableObject {
                             setupCost: opportunity.requiredInvestment ?? 0,
                             potentialSaleMultiple: 3.0,
                             revenueShare: opportunity.revenueShare ?? 100.0,
-                            type: .opportunity  // Explicitly set type to .opportunity
+                            type: .opportunity,
+                            symbol: self.getSymbolForTitle(opportunity.title)
                         )
                         
                         // Process the opportunity acceptance
@@ -753,17 +761,6 @@ class GameState: ObservableObject {
                 
                 self.objectWillChange.send()
             }
-        }
-    }
-    
-    private func convertOpportunityType(_ type: Opportunity.OpportunityType) -> BusinessOpportunity.OpportunityType {
-        switch type {
-        case .startup:
-            return .startup
-        case .freelance:
-            return .smallBusiness
-        case .investment:
-            return .investment
         }
     }
     
@@ -937,7 +934,8 @@ class GameState: ObservableObject {
             monthlyExpenses: opportunity.monthlyExpenses,
             setupCost: opportunity.setupCost,
             potentialSaleMultiple: opportunity.potentialSaleMultiple,
-            revenueShare: opportunity.revenueShare
+            revenueShare: opportunity.revenueShare,
+            symbol: getSymbolForTitle(opportunity.title)
         )
         
         // Add to feed as post
@@ -1132,14 +1130,7 @@ class GameState: ObservableObject {
             timestamp: Date(),
             isSponsored: true,
             linkedOpportunity: nil,
-            linkedInvestment: Asset(
-                symbol: update.updates.first?.symbol ?? "",
-                name: update.updates.first?.message.components(separatedBy: " ").first ?? "",
-                quantity: 0,
-                currentPrice: update.updates.first?.newPrice ?? 0,
-                purchasePrice: update.updates.first?.newPrice ?? 0,
-                type: update.updates.first?.type ?? .crypto
-            )
+            linkedInvestment: nil  // We'll handle the investment through the market update UI
         )
         posts.insert(post, at: 0)
         
@@ -1150,6 +1141,10 @@ class GameState: ObservableObject {
                 applyCryptoUpdate(symbol: updateItem.symbol, newPrice: updateItem.newPrice)
             case .stock:
                 applyStockUpdate(symbol: updateItem.symbol, newPrice: updateItem.newPrice)
+            case .startup:
+                if let multiple = updateItem.newMultiple {
+                    applyStartupUpdate(change: multiple)
+                }
             }
         }
         
@@ -1188,10 +1183,14 @@ class GameState: ObservableObject {
     private func applyStartupUpdate(change: Double) {
         for i in 0..<activeBusinesses.count {
             var business = activeBusinesses[i]
-            business.currentExitMultiple += change
-            // Ensure multiple doesn't go below 1
-            business.currentExitMultiple = max(1.0, business.currentExitMultiple)
-            activeBusinesses[i] = business
+            // Only update businesses that match the market update's symbol
+            if let update = currentMarketUpdate?.updates.first,
+               business.symbol == update.symbol {
+                business.currentExitMultiple += change
+                // Ensure multiple doesn't go below 1
+                business.currentExitMultiple = max(1.0, business.currentExitMultiple)
+                activeBusinesses[i] = business
+            }
         }
     }
     
@@ -1273,6 +1272,7 @@ class GameState: ObservableObject {
             MarketUpdate.Update(
                 symbol: update.symbol,
                 newPrice: update.newPrice,
+                newMultiple: nil,
                 message: update.message,
                 type: update.symbol == "BTC" ? .crypto : .stock
             )

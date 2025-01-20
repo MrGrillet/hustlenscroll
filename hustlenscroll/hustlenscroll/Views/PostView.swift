@@ -4,211 +4,44 @@ struct PostView: View {
     let post: Post
     @State private var showingInvestmentDetail = false
     @State private var activeSheet: ActiveSheet?
+    @State private var selectedBusinesses: Set<BusinessOpportunity> = []
     @EnvironmentObject var gameState: GameState
     
     enum ActiveSheet: Identifiable {
         case trending
         case investmentPurchase
+        case startupUpdate
+        case tradingUpdate
         
         var id: Int {
             switch self {
             case .trending: return 1
             case .investmentPurchase: return 2
+            case .startupUpdate: return 3
+            case .tradingUpdate: return 4
             }
         }
     }
     
     var isTrendingTopic: Bool {
-        // A post is a trending topic if it's sponsored but has no linked investment
         post.isSponsored && post.linkedInvestment == nil && !isMarketUpdate
     }
     
     var isMarketUpdate: Bool {
-        // Check if this is a market update post
         post.author == "MarketWatch" && post.role == "Market Analysis" && gameState.currentMarketUpdate != nil
     }
     
     var body: some View {
-        Button(action: {
-            if post.linkedInvestment != nil {
-                showingInvestmentDetail = true
-            } else if isMarketUpdate, let update = gameState.currentMarketUpdate {
-                if let btcUpdate = update.updates.first(where: { $0.symbol == "BTC" }) {
-                    let asset = Asset(symbol: btcUpdate.symbol,
-                                   name: "Bitcoin",
-                                   quantity: 0,
-                                   currentPrice: btcUpdate.newPrice,
-                                   purchasePrice: btcUpdate.newPrice,
-                                   type: .crypto)
-                    activeSheet = .investmentPurchase
-                }
-            } else if isTrendingTopic {
-                activeSheet = .trending
-            }
-        }) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Header with author info
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(post.author)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Text(post.role)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    if post.linkedInvestment != nil {
-                        Text("Investment Opportunity")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(uiColor: .systemGray6))
-                            .cornerRadius(4)
-                    } else if isMarketUpdate {
-                        Text("Market Update")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(uiColor: .systemGray6))
-                            .cornerRadius(4)
-                    } else if isTrendingTopic {
-                        HStack(spacing: 4) {
-                            Text("#trending")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                            if let symbol = extractTickerSymbol(from: post.content) {
-                                Text("$\(symbol)")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                            }
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(uiColor: .systemGray6))
-                        .cornerRadius(4)
-                    }
-                }
-                
-                // Post content
-                if let investment = post.linkedInvestment {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("\(investment.name) (\(investment.symbol))")
-                            .font(.headline)
-                        Text("Current Price: $\(investment.currentPrice, specifier: "%.2f")")
-                            .font(.subheadline)
-                        Text(post.content)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.leading)
-                            .padding(.top, 4)
-                    }
-                } else if isMarketUpdate, let update = gameState.currentMarketUpdate {
-                    if let btcUpdate = update.updates.first(where: { $0.symbol == "BTC" }) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Bitcoin (BTC)")
-                                .font(.headline)
-                            Text("Current Price: $\(btcUpdate.newPrice, specifier: "%.2f")")
-                                .font(.subheadline)
-                            Text(post.content)
-                                .font(.body)
-                                .foregroundColor(.primary)
-                                .multilineTextAlignment(.leading)
-                                .padding(.top, 4)
-                        }
-                    } else {
-                        Text(post.content)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.leading)
-                    }
-                } else {
-                    Text(post.content)
-                        .font(.body)
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.leading)
-                }
-                
-                Text(formatTimestamp(post.timestamp))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(radius: 2)
-        }
-        .buttonStyle(.plain)
+        PostButton(
+            post: post,
+            showingInvestmentDetail: $showingInvestmentDetail,
+            activeSheet: $activeSheet,
+            isMarketUpdate: isMarketUpdate,
+            isTrendingTopic: isTrendingTopic
+        )
         .sheet(isPresented: $showingInvestmentDetail) {
             if let investment = post.linkedInvestment {
-                NavigationView {
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            // Asset Information
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("\(investment.name) (\(investment.symbol))")
-                                    .font(.title2)
-                                Text("Current Price: $\(investment.currentPrice, specifier: "%.2f")")
-                                    .font(.headline)
-                                Text(post.content)
-                                    .font(.body)
-                                    .padding(.top, 4)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
-                            
-                            // Holdings Information if any
-                            let holdings = getHoldings(for: investment.symbol)
-                            if holdings.quantity > 0 {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Your Holdings")
-                                        .font(.headline)
-                                    Text("Quantity: \(holdings.quantity, specifier: "%.4f")")
-                                    Text("Current Value: $\(holdings.currentValue, specifier: "%.2f")")
-                                    
-                                    Button(action: {
-                                        sellAllHoldings(for: investment.symbol)
-                                        showingInvestmentDetail = false
-                                    }) {
-                                        Text("Sell All Holdings")
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .padding()
-                                            .background(Color.red)
-                                            .cornerRadius(8)
-                                    }
-                                }
-                                .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
-                            }
-                            
-                            // Trade Button
-                            Button(action: {
-                                activeSheet = .investmentPurchase
-                                showingInvestmentDetail = false
-                            }) {
-                                Text("Trade")
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top)
-                        }
-                        .padding()
-                    }
-                    .navigationBarItems(trailing: Button("Close") {
-                        showingInvestmentDetail = false
-                    })
-                }
+                InvestmentDetailView(investment: investment, showingInvestmentDetail: $showingInvestmentDetail, activeSheet: $activeSheet)
             }
         }
         .sheet(item: $activeSheet) { sheet in
@@ -216,18 +49,31 @@ struct PostView: View {
             case .trending:
                 TrendingTopicView(post: post)
             case .investmentPurchase:
-                if let update = gameState.currentMarketUpdate,
-                   let btcUpdate = update.updates.first(where: { $0.symbol == "BTC" }) {
-                    let asset = Asset(symbol: btcUpdate.symbol,
-                                   name: "Bitcoin",
-                                   quantity: 0,
-                                   currentPrice: btcUpdate.newPrice,
-                                   purchasePrice: btcUpdate.newPrice,
-                                   type: .crypto)
-                    InvestmentPurchaseView(asset: asset)
-                } else if let investment = post.linkedInvestment {
-                    InvestmentPurchaseView(asset: investment)
+                if let update = gameState.currentMarketUpdate?.updates.first {
+                    if update.type == .startup {
+                        MarketUpdateView(
+                            post: post,
+                            activeSheet: $activeSheet,
+                            selectedBusinesses: $selectedBusinesses
+                        )
+                    } else {
+                        TradingView(
+                            post: post,
+                            activeSheet: $activeSheet
+                        )
+                    }
                 }
+            case .startupUpdate:
+                MarketUpdateView(
+                    post: post,
+                    activeSheet: $activeSheet,
+                    selectedBusinesses: $selectedBusinesses
+                )
+            case .tradingUpdate:
+                TradingView(
+                    post: post,
+                    activeSheet: $activeSheet
+                )
             }
         }
     }
@@ -245,9 +91,155 @@ struct PostView: View {
             return formatter.string(from: date)
         }
     }
+}
+
+// MARK: - Post Button
+struct PostButton: View {
+    let post: Post
+    @Binding var showingInvestmentDetail: Bool
+    @Binding var activeSheet: PostView.ActiveSheet?
+    let isMarketUpdate: Bool
+    let isTrendingTopic: Bool
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        Button(action: {
+            if post.linkedInvestment != nil {
+                showingInvestmentDetail = true
+            } else if isMarketUpdate, let update = gameState.currentMarketUpdate {
+                if let assetUpdate = update.updates.first {
+                    if assetUpdate.type == .startup {
+                        activeSheet = .startupUpdate
+                    } else {
+                        activeSheet = .tradingUpdate
+                    }
+                }
+            } else if isTrendingTopic {
+                activeSheet = .trending
+            }
+        }) {
+            PostContent(post: post, isMarketUpdate: isMarketUpdate, isTrendingTopic: isTrendingTopic)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Post Content
+struct PostContent: View {
+    let post: Post
+    let isMarketUpdate: Bool
+    let isTrendingTopic: Bool
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            PostHeader(post: post, isMarketUpdate: isMarketUpdate, isTrendingTopic: isTrendingTopic)
+            PostBody(post: post, isMarketUpdate: isMarketUpdate)
+            Text(formatTimestamp(post.timestamp))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(radius: 2)
+    }
+    
+    private func formatTimestamp(_ date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "h:mm a"
+            return formatter.string(from: date)
+        } else if Calendar.current.isDateInYesterday(date) {
+            return "Yesterday"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d"
+            return formatter.string(from: date)
+        }
+    }
+}
+
+// MARK: - Post Header
+struct PostHeader: View {
+    let post: Post
+    let isMarketUpdate: Bool
+    let isTrendingTopic: Bool
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(post.author)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Text(post.role)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            PostBadge(post: post, isMarketUpdate: isMarketUpdate, isTrendingTopic: isTrendingTopic)
+        }
+    }
+}
+
+// MARK: - Post Badge
+struct PostBadge: View {
+    let post: Post
+    let isMarketUpdate: Bool
+    let isTrendingTopic: Bool
+    
+    var body: some View {
+        Group {
+            if post.linkedInvestment != nil {
+                BadgeView(text: "Investment Opportunity")
+            } else if isMarketUpdate {
+                BadgeView(text: "Market Update")
+            } else if isTrendingTopic {
+                TrendingBadge(post: post)
+            }
+        }
+    }
+}
+
+// MARK: - Badge View
+struct BadgeView: View {
+    let text: String
+    
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .foregroundColor(.blue)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color(uiColor: .systemGray6))
+            .cornerRadius(4)
+    }
+}
+
+// MARK: - Trending Badge
+struct TrendingBadge: View {
+    let post: Post
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("#trending")
+                .font(.caption)
+                .foregroundColor(.blue)
+            if let symbol = extractTickerSymbol(from: post.content) {
+                Text("$\(symbol)")
+                    .font(.caption)
+                    .foregroundColor(.green)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color(uiColor: .systemGray6))
+        .cornerRadius(4)
+    }
     
     private func extractTickerSymbol(from content: String) -> String? {
-        // Look for common patterns like "XYZ coin" or "AMZN stock"
         let words = content.split(separator: " ")
         for word in words {
             let cleaned = word.trimmingCharacters(in: .punctuationCharacters)
@@ -256,6 +248,483 @@ struct PostView: View {
             }
         }
         return nil
+    }
+}
+
+// MARK: - Post Body
+struct PostBody: View {
+    let post: Post
+    let isMarketUpdate: Bool
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        Group {
+            if let investment = post.linkedInvestment {
+                InvestmentContent(investment: investment, content: post.content)
+            } else if isMarketUpdate, let update = gameState.currentMarketUpdate {
+                MarketUpdateContent(update: update, content: post.content)
+            } else {
+                Text(post.content)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+            }
+        }
+    }
+}
+
+// MARK: - Investment Content
+struct InvestmentContent: View {
+    let investment: Asset
+    let content: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(investment.name) (\(investment.symbol))")
+                .font(.headline)
+            Text("Current Price: $\(investment.currentPrice, specifier: "%.2f")")
+                .font(.subheadline)
+            Text(content)
+                .font(.body)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
+                .padding(.top, 4)
+        }
+    }
+}
+
+// MARK: - Market Update Content
+struct MarketUpdateContent: View {
+    let update: MarketUpdate
+    let content: String
+    
+    var body: some View {
+        if let assetUpdate = update.updates.first {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("\(getAssetName(for: assetUpdate.symbol)) (\(assetUpdate.symbol))")
+                    .font(.headline)
+                if assetUpdate.type == .startup {
+                    if let multiple = assetUpdate.newMultiple {
+                        Text("Current Multiple: \(multiple, specifier: "%.1f")x")
+                            .font(.subheadline)
+                    }
+                } else {
+                    Text("Current Price: $\(assetUpdate.newPrice, specifier: "%.2f")")
+                        .font(.subheadline)
+                }
+                Text(assetUpdate.message)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                    .padding(.top, 4)
+            }
+        } else {
+            Text(content)
+                .font(.body)
+                .foregroundColor(.primary)
+                .multilineTextAlignment(.leading)
+        }
+    }
+    
+    private func getAssetName(for symbol: String) -> String {
+        switch symbol {
+        case "AITECH": return "AI Technology Startup"
+        case "FINPAY": return "Fintech Payment Startup"
+        case "HTECH": return "Health Tech Startup"
+        case "GTECH": return "Green Tech Startup"
+        case "BTC": return "Bitcoin"
+        case "ETH": return "Ethereum"
+        case "SOL": return "Solana"
+        case "DOGE": return "Dogecoin"
+        default: return symbol
+        }
+    }
+}
+
+// MARK: - Market Update View
+struct MarketUpdateView: View {
+    let post: Post
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @Binding var selectedBusinesses: Set<BusinessOpportunity>
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        if let update = gameState.currentMarketUpdate,
+           let assetUpdate = update.updates.first {
+            NavigationView {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        BrokerInfoCard(description: update.description)
+                        MarketUpdateCard(assetUpdate: assetUpdate)
+                        BusinessAccountsSection(
+                            assetUpdate: assetUpdate,
+                            selectedBusinesses: $selectedBusinesses,
+                            activeSheet: $activeSheet
+                        )
+                    }
+                    .padding()
+                }
+                .navigationTitle("Market Update")
+                .navigationBarItems(trailing: Button("Close") {
+                    activeSheet = nil
+                })
+            }
+        }
+    }
+}
+
+// MARK: - Broker Info Card
+struct BrokerInfoCard: View {
+    let description: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Company Broker")
+                .font(.title2)
+                .bold()
+            
+            Text(description)
+                .font(.body)
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Market Update Card
+struct MarketUpdateCard: View {
+    let assetUpdate: MarketUpdate.Update
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(getAssetName(for: assetUpdate.symbol)) (\(assetUpdate.symbol))")
+                .font(.headline)
+            
+            if assetUpdate.type == .startup {
+                if let multiple = assetUpdate.newMultiple {
+                    Text("Current Multiple: \(multiple, specifier: "%.1f")x")
+                        .font(.subheadline)
+                }
+            } else {
+                Text("Current Price: $\(assetUpdate.newPrice, specifier: "%.2f")")
+                    .font(.subheadline)
+            }
+            
+            Text(assetUpdate.message)
+                .font(.body)
+                .padding(.top, 4)
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    private func getAssetName(for symbol: String) -> String {
+        switch symbol {
+        case "AITECH": return "AI Technology Startup"
+        case "FINPAY": return "Fintech Payment Startup"
+        case "HTECH": return "Health Tech Startup"
+        case "GTECH": return "Green Tech Startup"
+        case "BTC": return "Bitcoin"
+        case "ETH": return "Ethereum"
+        case "SOL": return "Solana"
+        case "DOGE": return "Dogecoin"
+        default: return symbol
+        }
+    }
+}
+
+// MARK: - Business Accounts Section
+struct BusinessAccountsSection: View {
+    let assetUpdate: MarketUpdate.Update
+    @Binding var selectedBusinesses: Set<BusinessOpportunity>
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Business Accounts")
+                .font(.headline)
+                .foregroundColor(.gray)
+                .padding(.horizontal)
+            
+            if !gameState.activeBusinesses.isEmpty {
+                BusinessList(
+                    assetUpdate: assetUpdate,
+                    selectedBusinesses: $selectedBusinesses
+                )
+                
+                if !selectedBusinesses.isEmpty {
+                    SellButton(
+                        selectedBusinesses: selectedBusinesses,
+                        multiple: assetUpdate.newMultiple ?? 1.0,
+                        activeSheet: $activeSheet
+                    )
+                }
+            } else {
+                NoBusinessesView()
+            }
+        }
+    }
+}
+
+// MARK: - Business List
+struct BusinessList: View {
+    let assetUpdate: MarketUpdate.Update
+    @Binding var selectedBusinesses: Set<BusinessOpportunity>
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        ForEach(gameState.activeBusinesses) { business in
+            BusinessCard(
+                business: business,
+                assetUpdate: assetUpdate,
+                selectedBusinesses: $selectedBusinesses
+            )
+        }
+    }
+}
+
+// MARK: - Business Card
+struct BusinessCard: View {
+    let business: BusinessOpportunity
+    let assetUpdate: MarketUpdate.Update
+    @Binding var selectedBusinesses: Set<BusinessOpportunity>
+    
+    var body: some View {
+        Button(action: {
+            if business.opportunityType == .startup && assetUpdate.type == .startup {
+                // Match business with market update based on symbol
+                if business.symbol == assetUpdate.symbol {
+                    if selectedBusinesses.contains(business) {
+                        selectedBusinesses.remove(business)
+                    } else {
+                        selectedBusinesses.insert(business)
+                    }
+                }
+            }
+        }) {
+            VStack(alignment: .leading, spacing: 10) {
+                BusinessCardHeader(
+                    business: business,
+                    assetUpdate: assetUpdate,
+                    isSelected: selectedBusinesses.contains(business),
+                    matchesUpdate: business.symbol == assetUpdate.symbol
+                )
+                
+                BusinessCardDetails(business: business)
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(10)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Business Card Header
+struct BusinessCardHeader: View {
+    let business: BusinessOpportunity
+    let assetUpdate: MarketUpdate.Update
+    let isSelected: Bool
+    let matchesUpdate: Bool
+    
+    var body: some View {
+        HStack {
+            Text(business.title)
+                .font(.title3)
+                .bold()
+            
+            Spacer()
+            
+            if business.opportunityType == .startup && assetUpdate.type == .startup && matchesUpdate {
+                if isSelected {
+                    Text("For Sale")
+                        .font(.caption)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.blue)
+                        .cornerRadius(4)
+                } else {
+                    Text("Tap to Sell")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(4)
+                }
+            }
+        }
+        .padding(.bottom, 5)
+    }
+}
+
+// MARK: - Business Card Details
+struct BusinessCardDetails: View {
+    let business: BusinessOpportunity
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            InfoRow(title: "Business Checking", value: String(format: "$%.2f", business.monthlyCashflow))
+            InfoRow(title: "Monthly Revenue", value: String(format: "$%.2f", business.monthlyRevenue))
+            InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", business.monthlyExpenses))
+            
+            Divider()
+                .padding(.vertical, 5)
+            
+            InfoRow(title: "Current Exit Multiple", value: String(format: "%.1fx", business.currentExitMultiple))
+            InfoRow(title: "Current Exit Value", value: String(format: "$%.2f", business.currentExitValue))
+        }
+    }
+}
+
+// MARK: - Sell Button
+struct SellButton: View {
+    let selectedBusinesses: Set<BusinessOpportunity>
+    let multiple: Double
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        Button(action: {
+            sellSelectedBusinesses(multiple: multiple)
+            activeSheet = nil
+        }) {
+            Text("Sell Selected Companies")
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(10)
+        }
+        .padding(.top)
+    }
+    
+    private func sellSelectedBusinesses(multiple: Double) {
+        for business in selectedBusinesses {
+            let saleValue = business.currentExitValue * (business.revenueShare / 100.0) * (multiple / business.currentExitMultiple)
+            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Record transaction
+            gameState.transactions.append(Transaction(
+                date: Date(),
+                description: "Sold \(business.title)",
+                amount: saleValue,
+                isIncome: true
+            ))
+            
+            if let index = gameState.activeBusinesses.firstIndex(where: { $0.id == business.id }) {
+                gameState.activeBusinesses.remove(at: index)
+            }
+        }
+        
+        gameState.saveState()
+        gameState.objectWillChange.send()
+    }
+}
+
+// MARK: - No Businesses View
+struct NoBusinessesView: View {
+    var body: some View {
+        Text("No active businesses")
+            .font(.headline)
+            .foregroundColor(.gray)
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(12)
+    }
+}
+
+// MARK: - Investment Detail View
+struct InvestmentDetailView: View {
+    let investment: Asset
+    @Binding var showingInvestmentDetail: Bool
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    AssetInformationCard(investment: investment)
+                    HoldingsCard(investment: investment, showingInvestmentDetail: $showingInvestmentDetail)
+                    TradeButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
+                }
+                .padding()
+            }
+            .navigationBarItems(trailing: Button("Close") {
+                showingInvestmentDetail = false
+            })
+        }
+    }
+}
+
+// MARK: - Asset Information Card
+struct AssetInformationCard: View {
+    let investment: Asset
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(investment.name) (\(investment.symbol))")
+                .font(.title2)
+            Text("Current Price: $\(investment.currentPrice, specifier: "%.2f")")
+                .font(.headline)
+            if let post = gameState.posts.first(where: { $0.linkedInvestment?.symbol == investment.symbol }) {
+                Text(post.content)
+                    .font(.body)
+                    .padding(.top, 4)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Holdings Card
+struct HoldingsCard: View {
+    let investment: Asset
+    @Binding var showingInvestmentDetail: Bool
+    @EnvironmentObject var gameState: GameState
+    
+    private var holdings: (quantity: Double, currentValue: Double) {
+        getHoldings(for: investment.symbol)
+    }
+    
+    var body: some View {
+        if holdings.quantity > 0 {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Your Holdings")
+                    .font(.headline)
+                Text("Quantity: \(holdings.quantity, specifier: "%.4f")")
+                Text("Current Value: $\(holdings.currentValue, specifier: "%.2f")")
+                
+                Button(action: {
+                    sellAllHoldings(for: investment.symbol)
+                    showingInvestmentDetail = false
+                }) {
+                    Text("Sell All Holdings")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(8)
+                }
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(12)
+        }
     }
     
     private func getHoldings(for symbol: String) -> (quantity: Double, currentValue: Double) {
@@ -309,6 +778,27 @@ struct PostView: View {
             gameState.saveState()
             gameState.objectWillChange.send()
         }
+    }
+}
+
+// MARK: - Trade Button
+struct TradeButton: View {
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @Binding var showingInvestmentDetail: Bool
+    
+    var body: some View {
+        Button(action: {
+            activeSheet = .investmentPurchase
+            showingInvestmentDetail = false
+        }) {
+            Text("Trade")
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(8)
+        }
+        .padding(.top)
     }
 }
 
@@ -444,6 +934,349 @@ struct TrendingTopicView: View {
             ))
             
             gameState.equityPortfolio.assets.remove(at: index)
+            gameState.saveState()
+            gameState.objectWillChange.send()
+        }
+    }
+}
+
+// MARK: - Trading View Components
+struct MarketInfoView: View {
+    let description: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(description)
+                .font(.body)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+struct HoldingsView: View {
+    let symbol: String
+    let holdings: (quantity: Double, purchasePrice: Double)
+    let currentPrice: Double
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your Holdings")
+                .font(.headline)
+            
+            HStack {
+                Text("\(symbol):")
+                    .font(.subheadline)
+                Text("\(holdings.quantity, specifier: "%.2f")")
+                    .font(.subheadline)
+                    .bold()
+            }
+            
+            HStack {
+                Text("Current Value:")
+                    .font(.subheadline)
+                Text("$\(holdings.quantity * currentPrice, specifier: "%.2f")")
+                    .font(.subheadline)
+                    .bold()
+                    .foregroundColor(holdings.quantity * currentPrice > holdings.quantity * holdings.purchasePrice ? .green : .red)
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+struct TradingInputView: View {
+    @Binding var quantity: Double
+    let assetUpdate: MarketUpdate.Update
+    let holdings: (quantity: Double, purchasePrice: Double)?
+    @EnvironmentObject var gameState: GameState
+    let onSell: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 15) {
+            // Quantity Input
+            HStack {
+                Text("Amount:")
+                    .font(.headline)
+                Spacer()
+                HStack {
+                    Button(action: { quantity = max(0, quantity - 1) }) {
+                        Image(systemName: "minus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                    TextField("0.0", value: $quantity, format: .number)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(width: 100)
+                        .multilineTextAlignment(.center)
+                        .keyboardType(.decimalPad)
+                    Button(action: { quantity += 1 }) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            
+            if quantity > 0 {
+                Text("Total Value: $\(quantity * assetUpdate.newPrice, specifier: "%.2f")")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                // Buy/Sell Section
+                VStack(spacing: 15) {
+                    // Buy Buttons
+                    VStack(spacing: 10) {
+                        Text("Buy with:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        // Cash Button
+                        Button(action: { buyWithCash() }) {
+                            Text("Cash ($\(gameState.currentPlayer.bankBalance, specifier: "%.2f"))")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(gameState.currentPlayer.bankBalance >= quantity * assetUpdate.newPrice ? Color.green : Color.gray)
+                                .cornerRadius(10)
+                        }
+                        .disabled(gameState.currentPlayer.bankBalance < quantity * assetUpdate.newPrice)
+                        
+                        // Savings Button
+                        Button(action: { buyWithSavings() }) {
+                            Text("Savings ($\(gameState.currentPlayer.savingsBalance, specifier: "%.2f"))")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(gameState.currentPlayer.savingsBalance >= quantity * assetUpdate.newPrice ? Color.green : Color.gray)
+                                .cornerRadius(10)
+                        }
+                        .disabled(gameState.currentPlayer.savingsBalance < quantity * assetUpdate.newPrice)
+                        
+                        // Credit Button
+                        let availableCredit = gameState.creditLimit - gameState.creditCardBalance
+                        Button(action: { buyWithCredit() }) {
+                            Text("Credit ($\(availableCredit, specifier: "%.2f") available)")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(availableCredit >= quantity * assetUpdate.newPrice ? Color.green : Color.gray)
+                                .cornerRadius(10)
+                        }
+                        .disabled(availableCredit < quantity * assetUpdate.newPrice)
+                    }
+                    
+                    // Sell Button
+                    Button(action: onSell) {
+                        Text("Sell")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(holdings != nil && quantity <= (holdings?.quantity ?? 0) ? Color.red : Color.gray)
+                            .cornerRadius(10)
+                    }
+                    .disabled(holdings == nil || quantity > (holdings?.quantity ?? 0))
+                }
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    private func buyWithCash() {
+        let totalCost = quantity * assetUpdate.newPrice
+        guard gameState.currentPlayer.bankBalance >= totalCost else { return }
+        
+        gameState.currentPlayer.bankBalance -= totalCost
+        processPurchase()
+    }
+    
+    private func buyWithSavings() {
+        let totalCost = quantity * assetUpdate.newPrice
+        guard gameState.currentPlayer.savingsBalance >= totalCost else { return }
+        
+        gameState.currentPlayer.savingsBalance -= totalCost
+        processPurchase()
+    }
+    
+    private func buyWithCredit() {
+        let totalCost = quantity * assetUpdate.newPrice
+        let availableCredit = gameState.creditLimit - gameState.creditCardBalance
+        guard availableCredit >= totalCost else { return }
+        
+        gameState.creditCardBalance += totalCost
+        processPurchase()
+    }
+    
+    private func processPurchase() {
+        if assetUpdate.type == .crypto {
+            gameState.buyCrypto(
+                symbol: assetUpdate.symbol,
+                name: getAssetName(for: assetUpdate.symbol),
+                quantity: quantity,
+                price: assetUpdate.newPrice
+            )
+        } else {
+            gameState.buyStock(
+                symbol: assetUpdate.symbol,
+                name: getAssetName(for: assetUpdate.symbol),
+                quantity: quantity,
+                price: assetUpdate.newPrice
+            )
+        }
+    }
+    
+    private func getAssetName(for symbol: String) -> String {
+        switch symbol {
+        case "BTC": return "Bitcoin"
+        case "ETH": return "Ethereum"
+        case "SOL": return "Solana"
+        case "DOGE": return "Dogecoin"
+        default: return symbol
+        }
+    }
+}
+
+struct BankAccountsView: View {
+    let bankBalance: Double
+    let savingsBalance: Double
+    @EnvironmentObject var gameState: GameState
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 15) {
+            Text("Bank Accounts")
+                .font(.headline)
+                .foregroundColor(.gray)
+            
+            InfoRow(title: "Checking", value: String(format: "$%.2f", bankBalance))
+            InfoRow(title: "Savings", value: String(format: "$%.2f", savingsBalance))
+            InfoRow(title: "Credit Card", value: String(format: "$%.2f", gameState.creditCardBalance))
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Trading View
+struct TradingView: View {
+    let post: Post
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @EnvironmentObject var gameState: GameState
+    @State private var quantity: Double = 0.0
+    
+    var body: some View {
+        if let update = gameState.currentMarketUpdate,
+           let assetUpdate = update.updates.first {
+            NavigationView {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        MarketInfoView(description: update.description)
+                        MarketUpdateCard(assetUpdate: assetUpdate)
+                        
+                        let holdings = getCurrentHoldings(for: assetUpdate.symbol)
+                        if let holdings = holdings {
+                            HoldingsView(
+                                symbol: assetUpdate.symbol,
+                                holdings: holdings,
+                                currentPrice: assetUpdate.newPrice
+                            )
+                        }
+                        
+                        TradingInputView(
+                            quantity: $quantity,
+                            assetUpdate: assetUpdate,
+                            holdings: holdings,
+                            onSell: {
+                                if let h = holdings, quantity <= h.quantity {
+                                    sellHoldings(for: assetUpdate.symbol, quantity: quantity)
+                                    activeSheet = nil
+                                }
+                            }
+                        )
+                        
+                        BankAccountsView(
+                            bankBalance: gameState.currentPlayer.bankBalance,
+                            savingsBalance: gameState.currentPlayer.savingsBalance
+                        )
+                    }
+                    .padding()
+                }
+                .navigationTitle("Quantum Trading App")
+                .navigationBarItems(trailing: Button("Close") {
+                    activeSheet = nil
+                })
+            }
+        }
+    }
+    
+    private func getCurrentHoldings(for symbol: String) -> (quantity: Double, purchasePrice: Double)? {
+        if let asset = gameState.cryptoPortfolio.assets.first(where: { $0.symbol == symbol }) {
+            return (asset.quantity, asset.purchasePrice)
+        }
+        if let asset = gameState.equityPortfolio.assets.first(where: { $0.symbol == symbol }) {
+            return (asset.quantity, asset.purchasePrice)
+        }
+        return nil
+    }
+    
+    private func sellHoldings(for symbol: String, quantity: Double) {
+        // Try to sell from crypto portfolio
+        if let index = gameState.cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+            var asset = gameState.cryptoPortfolio.assets[index]
+            let saleValue = quantity * asset.currentPrice
+            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Record transaction
+            gameState.transactions.append(Transaction(
+                date: Date(),
+                description: "Sell \(quantity) \(asset.symbol) Crypto",
+                amount: saleValue,
+                isIncome: true
+            ))
+            
+            // Update or remove the asset
+            asset.quantity -= quantity
+            if asset.quantity <= 0 {
+                gameState.cryptoPortfolio.assets.remove(at: index)
+            } else {
+                gameState.cryptoPortfolio.assets[index] = asset
+            }
+            
+            gameState.saveState()
+            gameState.objectWillChange.send()
+            return
+        }
+        
+        // Try to sell from equity portfolio
+        if let index = gameState.equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
+            var asset = gameState.equityPortfolio.assets[index]
+            let saleValue = quantity * asset.currentPrice
+            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Record transaction
+            gameState.transactions.append(Transaction(
+                date: Date(),
+                description: "Sell \(quantity) \(asset.symbol) Stock",
+                amount: saleValue,
+                isIncome: true
+            ))
+            
+            // Update or remove the asset
+            asset.quantity -= quantity
+            if asset.quantity <= 0 {
+                gameState.equityPortfolio.assets.remove(at: index)
+            } else {
+                gameState.equityPortfolio.assets[index] = asset
+            }
+            
             gameState.saveState()
             gameState.objectWillChange.send()
         }

@@ -130,7 +130,8 @@ struct PredefinedOpportunity {
                 monthlyExpenses: 4000,
                 setupCost: 75000,
                 potentialSaleMultiple: 4.0,
-                revenueShare: 20.0
+                revenueShare: 20.0,
+                symbol: "AI Health Tech"
             ),
             Message(
                 senderId: "vc_partner",
@@ -156,12 +157,13 @@ struct PredefinedOpportunity {
                 title: "Event Booking Platform",
                 description: "White-label event booking software for small venues. Established customer base with steady revenue.",
                 source: .customer,
-                opportunityType: .smallBusiness,
+                opportunityType: .startup,
                 monthlyRevenue: 3500,
                 monthlyExpenses: 800,
                 setupCost: 10000,
                 potentialSaleMultiple: 2.0,
-                revenueShare: 40.0
+                revenueShare: 40.0,
+                symbol: "Event Platform"
             ),
             Message(
                 senderId: "founder",
@@ -192,7 +194,8 @@ struct PredefinedOpportunity {
                 monthlyExpenses: 15000,
                 setupCost: 150000,
                 potentialSaleMultiple: 3.0,
-                revenueShare: 100.0
+                revenueShare: 100.0,
+                symbol: "E-commerce"
             ),
             Message(
                 senderId: "broker",
@@ -223,7 +226,8 @@ struct PredefinedOpportunity {
                 monthlyExpenses: 1000,
                 setupCost: 25000,
                 potentialSaleMultiple: 3.5,
-                revenueShare: 30.0
+                revenueShare: 30.0,
+                symbol: "Fitness App"
             ),
             Message(
                 senderId: "app_founder",
@@ -249,12 +253,13 @@ struct PredefinedOpportunity {
                 title: "Developer Productivity Tool",
                 description: "Chrome extension for developers with 5k users. Looking for partner to help monetize and grow. $5,000 investment for 50% equity.",
                 source: .socialMedia,
-                opportunityType: .smallBusiness,
+                opportunityType: .startup,
                 monthlyRevenue: 1000,
                 monthlyExpenses: 200,
                 setupCost: 5000,
                 potentialSaleMultiple: 2.5,
-                revenueShare: 50.0
+                revenueShare: 50.0,
+                symbol: "Dev Tool"
             ),
             Message(
                 senderId: "indie_dev",

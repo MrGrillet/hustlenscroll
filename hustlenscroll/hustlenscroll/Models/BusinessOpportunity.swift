@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable {
+struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
     let id: UUID
     let title: String
     let description: String
@@ -14,6 +14,17 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable {
     let potentialSaleMultiple: Double
     let revenueShare: Double
     var currentExitMultiple: Double
+    let symbol: String
+    
+    // Implement hash(into:) for Hashable conformance
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    // Implement == for Hashable conformance
+    static func == (lhs: BusinessOpportunity, rhs: BusinessOpportunity) -> Bool {
+        lhs.id == rhs.id
+    }
     
     var monthlyCashflow: Double {
         monthlyRevenue - monthlyExpenses
@@ -53,7 +64,8 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable {
         potentialSaleMultiple: Double,
         revenueShare: Double = 100.0,
         type: EventType = .opportunity,
-        currentExitMultiple: Double? = nil
+        currentExitMultiple: Double? = nil,
+        symbol: String
     ) {
         self.id = id
         self.title = title
@@ -67,5 +79,6 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable {
         self.potentialSaleMultiple = potentialSaleMultiple
         self.revenueShare = revenueShare
         self.currentExitMultiple = currentExitMultiple ?? potentialSaleMultiple
+        self.symbol = symbol
     }
 } 

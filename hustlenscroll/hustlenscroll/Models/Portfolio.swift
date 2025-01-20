@@ -24,6 +24,7 @@ struct Asset: Identifiable, Codable {
     enum AssetType: String, Codable {
         case crypto
         case stock
+        case startup
     }
     
     init(id: UUID = UUID(), symbol: String, name: String, quantity: Double, currentPrice: Double, purchasePrice: Double, type: AssetType) {
