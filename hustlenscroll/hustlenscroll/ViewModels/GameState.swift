@@ -866,19 +866,10 @@ class GameState: ObservableObject {
         let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 2...4))
         posts.insert(contentsOf: newPosts, at: 0)
         
-        // Sometimes add a trending topic (30% chance)
+        // Sometimes add a market update (30% chance)
         if Double.random(in: 0...1) < 0.3 {
-            if let topic = TrendingTopic.predefinedTopics.randomElement() {
-                applyTrendingTopic(topic)
-                
-                // Add trending post
-                posts.insert(Post(
-                    author: "MarketWatch",
-                    role: "Market Analysis",
-                    content: topic.description,
-                    isSponsored: true
-                ), at: 0)
-            }
+            let update = MarketUpdate.generateRandomUpdate()
+            applyMarketUpdate(update)
         }
         
         // Limit total posts to prevent memory issues
@@ -1137,8 +1128,18 @@ class GameState: ObservableObject {
         let post = Post(
             author: "MarketWatch",
             role: "Market Analysis",
-            content: update.description,
-            isSponsored: true
+            content: "\(update.title)\n\n\(update.description)",
+            timestamp: Date(),
+            isSponsored: true,
+            linkedOpportunity: nil,
+            linkedInvestment: Asset(
+                symbol: update.updates.first?.symbol ?? "",
+                name: update.updates.first?.message.components(separatedBy: " ").first ?? "",
+                quantity: 0,
+                currentPrice: update.updates.first?.newPrice ?? 0,
+                purchasePrice: update.updates.first?.newPrice ?? 0,
+                type: update.updates.first?.type ?? .crypto
+            )
         )
         posts.insert(post, at: 0)
         
@@ -1146,25 +1147,19 @@ class GameState: ObservableObject {
         for updateItem in update.updates {
             switch updateItem.type {
             case .crypto:
-                applyCryptoUpdate(symbol: updateItem.symbol, change: updateItem.priceChange)
+                applyCryptoUpdate(symbol: updateItem.symbol, newPrice: updateItem.newPrice)
             case .stock:
-                applyStockUpdate(symbol: updateItem.symbol, change: updateItem.priceChange)
-            case .startup:
-                applyStartupUpdate(change: updateItem.exitMultipleChange ?? 0)
+                applyStockUpdate(symbol: updateItem.symbol, newPrice: updateItem.newPrice)
             }
         }
-        
-        // Check for exit opportunities
-        checkStartupExitOpportunities()
         
         saveState()
         objectWillChange.send()
     }
     
-    private func applyCryptoUpdate(symbol: String, change: Double) {
+    private func applyCryptoUpdate(symbol: String, newPrice: Double) {
         if let index = cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
             let asset = cryptoPortfolio.assets[index]
-            let newPrice = asset.currentPrice * (1 + change)
             cryptoPortfolio.assets[index] = Asset(
                 symbol: asset.symbol,
                 name: asset.name,
@@ -1176,10 +1171,9 @@ class GameState: ObservableObject {
         }
     }
     
-    private func applyStockUpdate(symbol: String, change: Double) {
+    private func applyStockUpdate(symbol: String, newPrice: Double) {
         if let index = equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
             let asset = equityPortfolio.assets[index]
-            let newPrice = asset.currentPrice * (1 + change)
             equityPortfolio.assets[index] = Asset(
                 symbol: asset.symbol,
                 name: asset.name,
@@ -1273,6 +1267,25 @@ class GameState: ObservableObject {
         saveState()
         objectWillChange.send()
     }
+    
+    func createManualMarketUpdate(title: String, description: String, updates: [(symbol: String, newPrice: Double, message: String)]) {
+        let marketUpdates = updates.map { update in
+            MarketUpdate.Update(
+                symbol: update.symbol,
+                newPrice: update.newPrice,
+                message: update.message,
+                type: update.symbol == "BTC" ? .crypto : .stock
+            )
+        }
+        
+        let marketUpdate = MarketUpdate(
+            title: title,
+            description: description,
+            updates: marketUpdates
+        )
+        
+        applyMarketUpdate(marketUpdate)
+    }
 }
 
 // Structure to represent saved game data
@@ -1298,15 +1311,4 @@ struct SavedGameState: Codable {
     let lastRecordedMonth: Date?
     let showingExitOpportunity: BusinessOpportunity?
     let currentMarketUpdate: MarketUpdate?
-}
-
-// Add loadState function after the GameState class declaration but before SavedGameState struct
-extension GameState {
-    private func loadState() -> SavedGameState? {
-        guard let savedData = UserDefaults.standard.data(forKey: "gameState"),
-              let decoded = try? JSONDecoder().decode(SavedGameState.self, from: savedData) else {
-            return nil
-        }
-        return decoded
-    }
 } 

@@ -72,56 +72,7 @@ struct TrendingTopic: GameEventProtocol, Identifiable, Codable {
         case id, title, description, impact
     }
     
-    static let predefinedTopics: [TrendingTopic] = [
-        TrendingTopic(
-            id: UUID(),
-            title: "Bitcoin Crash",
-            description: "🚨 Bitcoin plummets to $1,000 as founder disappears with funds",
-            impact: .specificAsset(symbol: "BTC", price_today: 1000.0)
-        ),
-        TrendingTopic(
-            id: UUID(),
-            title: "Bitcoin BOOOMMMM",
-            description: "🚨 Bitcoin plummets to $1,000 as founder disappears with funds",
-            impact: .specificAsset(symbol: "BTC", price_today: 50000.0)
-        ),
-        TrendingTopic(
-            id: UUID(),
-            title: "Bitcoin growing nicely",
-            description: "🚨 Bitcoin plummets to $1,000 as founder disappears with funds",
-            impact: .specificAsset(symbol: "BTC", price_today: 9000.0)
-        ),
-        TrendingTopic(
-            id: UUID(),
-            title: "Ethereum Crash",
-            description: "🚨 Ethereum drops to $100 as founder disappears with funds",
-            impact: .specificAsset(symbol: "ETH", price_today: 100.0)
-        ),
-        TrendingTopic(
-            id: UUID(),
-            title: "Ethereum growing nicely",
-            description: "🚨 Ethereum drops to $100 as founder disappears with funds",
-            impact: .specificAsset(symbol: "ETH", price_today: 5000.0)
-        ),
-        TrendingTopic(
-            id: UUID(),
-            title: "Ethereum growing BOOOMMMM",
-            description: "🚨 Ethereum drops to $100 as founder disappears with funds",
-            impact: .specificAsset(symbol: "ETH", price_today: 90000.0)
-        ),
-        TrendingTopic(
-            id: UUID(),
-            title: "Nvidia growing BOOOMMMM",
-            description: "🚨 Nvidia grows to $10000 as founder disappears with funds",
-            impact: .specificAsset(symbol: "NVDA", price_today: 10000.0)
-        ),
-        TrendingTopic(
-            id: UUID(),
-            title: "Nvidia growing Crashing",
-            description: "🚨 Nvidia drops to $100 as founder disappears with funds",
-            impact: .specificAsset(symbol: "NVDA", price_today: 1000.0)
-        )
-    ]
+    static let predefinedTopics: [TrendingTopic] = []
 }
 
 // MARK: - Unexpected Expenses
@@ -156,35 +107,11 @@ struct UnexpectedExpense: GameEventProtocol, Identifiable, Codable {
         ),
         UnexpectedExpense(
             id: UUID(),
-            title: "Crypto Wallet Compromised",
-            description: "Your crypto wallet was hacked and funds were drained.",
-            amount: 5000,
-            isUrgent: true,
-            category: .crypto
-        ),
-        UnexpectedExpense(
-            id: UUID(),
-            title: "NFT Collection Stolen",
-            description: "Your NFT collection was stolen through a phishing attack.",
-            amount: 3000,
-            isUrgent: false,
-            category: .crypto
-        ),
-        UnexpectedExpense(
-            id: UUID(),
             title: "Medical Emergency",
             description: "Broke your leg during a weekend hike. Medical bills not fully covered by insurance.",
             amount: 4000,
             isUrgent: true,
             category: .personal
-        ),
-        UnexpectedExpense(
-            id: UUID(),
-            title: "Server Outage",
-            description: "Critical server failure requires immediate hardware replacement.",
-            amount: 1500,
-            isUrgent: true,
-            category: .business
         )
     ]
 }
