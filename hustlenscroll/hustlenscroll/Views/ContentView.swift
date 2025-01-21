@@ -3,11 +3,12 @@ import SwiftUI
 struct ContentView: View {
     @StateObject var gameState = GameState()
     @State private var needsOnboarding = true
+    @State private var showingComposePost = false
     
     var body: some View {
         Group {
             if needsOnboarding {
-                HomeView()
+                OnboardingView()
             } else {
                 MainTabView()
             }
@@ -21,6 +22,22 @@ struct ContentView: View {
         }
         .onAppear {
             checkOnboardingStatus()
+        }
+        .sheet(isPresented: $showingComposePost) {
+            if let draft = gameState.draftPost {
+                ComposePostView(
+                    gameState: gameState,
+                    initialContent: draft.content,
+                    initialImages: draft.images,
+                    linkedOpportunity: draft.opportunity,
+                    linkedInvestment: draft.investment
+                )
+            } else {
+                ComposePostView(gameState: gameState)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowDraftPost"))) { _ in
+            showingComposePost = true
         }
     }
     

@@ -21,12 +21,8 @@ struct GoalSelectionView: View {
                     VStack(spacing: 16) {
                         ForEach(Goal.allCases) { goal in
                             Button {
-                                withAnimation {
-                                    selectedGoal = goal
-                                    DispatchQueue.main.async {
-                                        showingGoalDetail = true
-                                    }
-                                }
+                                selectedGoal = goal
+                                showingGoalDetail = true
                             } label: {
                                 GoalCard(goal: goal)
                             }
@@ -38,45 +34,17 @@ struct GoalSelectionView: View {
             }
             .navigationBarHidden(true)
         }
-        .fullScreenCover(item: $selectedGoal) { goal in
-            NavigationView {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text(goal.title)
-                            .font(.title)
-                            .bold()
-                        
-                        Text("Target Amount")
-                            .font(.headline)
-                        Text("$\(Int(goal.price).formattedWithSeparator)")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                        
-                        Text("Description")
-                            .font(.headline)
-                        Text(goal.longDescription)
-                            .font(.body)
-                            .foregroundColor(.gray)
+        .sheet(isPresented: $showingGoalDetail) {
+            if let goal = selectedGoal {
+                GoalDetailSheet(
+                    goal: goal,
+                    isSelected: false,
+                    onSelection: { _ in
+                        gameState.setPlayerGoal(goal)
+                        selectedGoal = nil
+                        dismiss()
                     }
-                    .padding()
-                }
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Back") {
-                            selectedGoal = nil
-                        }
-                    }
-                    
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Select") {
-                            gameState.setPlayerGoal(goal)
-                            selectedGoal = nil
-                            dismiss()
-                        }
-                        .bold()
-                    }
-                }
+                )
             }
         }
     }

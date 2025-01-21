@@ -29,8 +29,10 @@ struct AccountListView: View {
                                 .padding(.bottom, 5)
                             
                             InfoRow(title: "Balance", value: String(format: "$%.2f", gameState.currentPlayer.bankBalance))
-                            InfoRow(title: "Monthly Income", value: String(format: "$%.2f", gameState.currentPlayer.monthlySalary))
-                            InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", gameState.currentPlayer.monthlyExpenses))
+                            if let roleDetails = Role.getRole(byTitle: gameState.currentPlayer.role) {
+                                InfoRow(title: "Monthly Income", value: String(format: "$%.2f", roleDetails.monthlySalary))
+                                InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", roleDetails.monthlyExpenses))
+                            }
                         }
                     }
                     .padding()
@@ -48,8 +50,10 @@ struct AccountListView: View {
                                 .padding(.bottom, 5)
                             
                             InfoRow(title: "Balance", value: String(format: "$%.2f", gameState.currentPlayer.savingsBalance))
-                            InfoRow(title: "Monthly Income", value: String(format: "$%.2f", gameState.currentPlayer.monthlySalary))
-                            InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", gameState.currentPlayer.monthlyExpenses))
+                            if let roleDetails = Role.getRole(byTitle: gameState.currentPlayer.role) {
+                                InfoRow(title: "Monthly Income", value: String(format: "$%.2f", roleDetails.monthlySalary))
+                                InfoRow(title: "Monthly Expenses", value: String(format: "$%.2f", roleDetails.monthlyExpenses))
+                            }
                         }
                     }
                     .padding()

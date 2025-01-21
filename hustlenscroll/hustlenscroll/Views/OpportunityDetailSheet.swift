@@ -50,6 +50,13 @@ struct OpportunityDetailSheet: View {
                     
                     // Action Buttons
                     VStack(spacing: 12) {
+                        if gameState.currentPlayer.bankBalance < opportunity.setupCost {
+                            Text("Insufficient funds - you need $\(Int(opportunity.setupCost).formattedWithSeparator)")
+                                .foregroundColor(.red)
+                                .font(.subheadline)
+                                .padding(.bottom, 4)
+                        }
+                        
                         Button(action: {
                             gameState.acceptOpportunity(opportunity)
                             dismiss()
@@ -59,7 +66,7 @@ struct OpportunityDetailSheet: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.blue)
+                                .background(gameState.currentPlayer.bankBalance >= opportunity.setupCost ? Color.blue : Color.gray)
                                 .cornerRadius(10)
                         }
                         .disabled(gameState.currentPlayer.bankBalance < opportunity.setupCost)

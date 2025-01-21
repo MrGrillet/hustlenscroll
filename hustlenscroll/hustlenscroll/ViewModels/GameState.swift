@@ -18,6 +18,7 @@ class GameState: ObservableObject {
     @Published var eventLog: [String]
     @Published var posts: [Post] = []
     @Published var profile: Profile?
+    @Published var profileImage: String?
     @Published var hasStartup: Bool = false
     @Published var startupBalance: Double = 0
     @Published var startupRevenue: Double = 0
@@ -28,11 +29,7 @@ class GameState: ObservableObject {
     @Published var businessTransactions: [Transaction] = []
     @Published var businessName: String = ""
     @Published var businessProfitLoss: Double = 0
-    @Published var playerGoal: Goal? {
-        didSet {
-            objectWillChange.send()  // Ensure UI updates
-        }
-    }
+    @Published var playerGoal: Goal?
     @Published var messages: [Message] = [] {
         didSet {
             objectWillChange.send()  // Ensure UI updates
@@ -45,9 +42,11 @@ class GameState: ObservableObject {
     @Published var canQuitJob: Bool = false
     @Published var hasQuitJob: Bool = false
     @Published var activeTrendingTopics: [TrendingTopic] = []
-    @Published var lastRecordedMonth: Date?
-    @Published var showingExitOpportunity: BusinessOpportunity?
-    @Published var currentMarketUpdate: MarketUpdate?
+    @Published var lastRecordedMonth: Date? = nil
+    @Published var showingExitOpportunity: BusinessOpportunity? = nil
+    @Published var currentMarketUpdate: MarketUpdate? = nil
+    @Published var userPosts: [Post] = []
+    @Published var draftPost: (content: String, images: [String], opportunity: BusinessOpportunity?, investment: Asset?)? = nil
     
     var initialMessages: [Message] {
         // Create a fixed date for initial messages - Jan 1, 2024
@@ -98,14 +97,19 @@ class GameState: ObservableObject {
         self.events = []
         self.eventLog = []
         self.posts = []
+        self.userPosts = []
         self.transactions = []
         self.messages = []
         self.activeBusinesses = []
         self.cryptoPortfolio = CryptoPortfolio(assets: [])
         self.equityPortfolio = EquityPortfolio(assets: [])
-        self.currentPlayer = Player(name: "", role: "")
+        
+        // Initialize with default role (Junior Developer)
+        self.currentPlayer = Player(name: "", role: "Junior Developer")
+        
         self.playerGoal = nil
         self.profile = nil
+        self.profileImage = nil
         self.lastRecordedMonth = nil
         self.showingExitOpportunity = nil
         self.currentMarketUpdate = nil
@@ -132,6 +136,9 @@ class GameState: ObservableObject {
             self.lastRecordedMonth = decoded.lastRecordedMonth
             self.showingExitOpportunity = decoded.showingExitOpportunity
             self.currentMarketUpdate = decoded.currentMarketUpdate
+            self.posts = decoded.posts
+            self.userPosts = decoded.userPosts
+            self.profileImage = decoded.profileImage
             
             // Only add initial messages if we don't have any
             if messages.isEmpty {
@@ -140,6 +147,15 @@ class GameState: ObservableObject {
         } else {
             // Add initial messages for new game
             self.messages = initialMessages
+        }
+        
+        // Ensure profile exists
+        if profile == nil && !currentPlayer.name.isEmpty {
+            profile = Profile(
+                name: currentPlayer.name,
+                role: currentPlayer.role,
+                goal: playerGoal ?? .retirement
+            )
         }
         
         // Initialize sample events
@@ -174,8 +190,10 @@ class GameState: ObservableObject {
             )
         ]
         
-        // Add initial filler posts
-        self.posts = SampleContent.generateFillerPosts(count: 3)
+        // Add initial filler posts if no posts exist
+        if self.posts.isEmpty {
+            self.posts = SampleContent.generateFillerPosts(count: 3)
+        }
         
         // Force a save to ensure everything is persisted
         saveState()
@@ -186,8 +204,10 @@ class GameState: ObservableObject {
             events: events,
             eventLog: eventLog,
             posts: posts,
+            userPosts: userPosts,
             player: currentPlayer,
             goal: playerGoal,
+            profileImage: profileImage,  // Save profile image
             transactions: transactions,
             messages: messages,
             hasStartup: hasStartup,
@@ -218,8 +238,12 @@ class GameState: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "gameState")
         
         // Reset all properties to default
-        currentPlayer = Player(name: "", role: "")
+        let defaultRole = Role.getRole(byTitle: "Junior Developer")!
+        currentPlayer = Player(name: "", role: defaultRole.title)
+        
         playerGoal = nil
+        profile = nil
+        profileImage = nil
         transactions = []
         hasStartup = false
         startupBalance = 0
@@ -231,34 +255,31 @@ class GameState: ObservableObject {
         totalMonthlyBusinessIncome = 0
         canQuitJob = false
         hasQuitJob = false
-        events = []
-        eventLog = []
-        posts = []
+        messages = initialMessages
+        posts = SampleContent.generateFillerPosts(count: 3)
+        userPosts = []
         lastRecordedMonth = nil
         showingExitOpportunity = nil
         currentMarketUpdate = nil
         
-        // Add initial messages from mentor
-        messages = initialMessages
-        
-        // Add initial filler posts
-        posts = SampleContent.generateFillerPosts(count: 10)
-        
-        objectWillChange.send()
+        saveState()
     }
     
     func advanceTurn() {
         // Record all monthly transactions
         recordMonthlyTransactions()
         
+        // Get role details
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return }
+        
         // Update bank balance with income
-        currentPlayer.bankBalance += currentPlayer.monthlySalary
+        currentPlayer.bankBalance += role.monthlySalary
         
         // Update bank balance with expenses
-        currentPlayer.bankBalance -= currentPlayer.expenses.total
+        currentPlayer.bankBalance -= role.monthlyExpenses
         
-        // Update credit card balance
-        creditCardBalance += currentPlayer.expenses.creditCard
+        // Update credit card balance with minimum payment
+        creditCardBalance += role.expenses.creditCard
         
         // Pick and apply random event
         if let randomEvent = events.randomElement() {
@@ -284,15 +305,21 @@ class GameState: ObservableObject {
     
     func startNewGame(with player: Player) {
         self.currentPlayer = player
-        self.eventLog = []  // Clear any existing event log
-        saveState()  // Save after setting up the new player
+        if Role.getRole(byTitle: player.role) != nil {
+            self.profile = Profile(
+                name: player.name,
+                role: player.role,
+                goal: playerGoal ?? .retirement
+            )
+            saveState()
+        }
     }
     
     func updateProfile(name: String, role: String, goal: Goal) {
-        profile = Profile(name: name, role: role, goal: goal)
-        currentPlayer.name = name
-        currentPlayer.role = role
-        playerGoal = goal  // Also set the playerGoal
+        if Role.getRole(byTitle: role) != nil {
+            self.profile = Profile(name: name, role: role, goal: goal)
+            saveState()
+        }
     }
     
     func createStartup(name: String, initialInvestment: Double) {
@@ -391,11 +418,14 @@ class GameState: ObservableObject {
             return
         }
         
+        // Get role details
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return }
+        
         // Record salary income
         transactions.append(Transaction(
             date: currentMonth,
             description: "Monthly Salary",
-            amount: currentPlayer.monthlySalary,
+            amount: role.monthlySalary,
             isIncome: true
         ))
         
@@ -411,7 +441,7 @@ class GameState: ObservableObject {
         }
         
         // Record expenses
-        let expenses = currentPlayer.expenses
+        let expenses = role.expenses
         let expenseItems: [(String, Double)] = [
             ("Rent", expenses.rent),
             ("Cell & Internet", expenses.cellAndInternet),
@@ -431,14 +461,6 @@ class GameState: ObservableObject {
                 amount: amount,
                 isIncome: false
             ))
-        }
-        
-        // If has business, record business transactions
-        if hasStartup {
-            // Example: Random business performance
-            let revenue = Double.random(in: 1000...5000)
-            let expenses = Double.random(in: 500...3000)
-            recordBusinessTransaction(revenue: revenue, expenses: expenses)
         }
         
         // Update last recorded month
@@ -497,9 +519,15 @@ class GameState: ObservableObject {
     }
     
     func setPlayerGoal(_ goal: Goal) {
-        playerGoal = goal
-        saveState()  // Save the game after setting the goal
-        objectWillChange.send()
+        self.playerGoal = goal
+        if let name = profile?.name {
+            self.profile = Profile(
+                name: name,
+                role: currentPlayer.role,
+                goal: goal
+            )
+        }
+        saveState()
     }
     
     func markMessageAsRead(_ message: Message) {
@@ -626,66 +654,29 @@ class GameState: ObservableObject {
     }
     
     func checkQuitJobEligibility() {
-        canQuitJob = totalPassiveIncome > currentPlayer.monthlyExpenses
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return }
+        canQuitJob = totalPassiveIncome > role.monthlyExpenses
     }
     
     func acceptOpportunity(_ opportunity: BusinessOpportunity) {
         // Check if player has enough money
         guard currentPlayer.bankBalance >= opportunity.setupCost else { return }
         
-        // Deduct setup cost
+        // Process the opportunity acceptance
         currentPlayer.bankBalance -= opportunity.setupCost
+        activeBusinesses.append(opportunity)
+        currentPlayer.activeBusinesses.append(opportunity.id.uuidString)
         
-        // Add to active businesses if not already present
-        if !activeBusinesses.contains(where: { $0.id == opportunity.id }) {
-            activeBusinesses.append(opportunity)
-            
-            // Update startup properties
-            hasStartup = true
-            startupBalance = opportunity.setupCost
-            startupRevenue = opportunity.monthlyRevenue
-            startupExpenses = opportunity.monthlyExpenses
-            businessName = opportunity.title
-            
-            // Record transaction
-            transactions.append(Transaction(
-                date: Date(),
-                description: "Investment in \(opportunity.title)",
-                amount: opportunity.setupCost,
-                isIncome: false
-            ))
-            
-            // Add business transaction
-            businessTransactions.append(Transaction(
-                date: Date(),
-                description: "Initial Investment",
-                amount: opportunity.setupCost,
-                isIncome: true
-            ))
-            
-            // Update monthly income
-            totalMonthlyBusinessIncome += opportunity.monthlyCashflow * (opportunity.revenueShare / 100.0)
-            
-            // Check if player can quit job
-            checkQuitJobEligibility()
-            
-            // Add confirmation message with explicit isRead = false
-            let confirmationMessage = Message(
-                id: UUID(),
-                senderId: "SYSTEM",
-                senderName: "System",
-                senderRole: "Notification",
-                timestamp: Date(),
-                content: "Investment confirmed! You now own \(opportunity.revenueShare)% of \(opportunity.title). Your monthly share of the cash flow will be $\(Int(opportunity.monthlyCashflow * (opportunity.revenueShare / 100.0))).",
-                opportunity: nil,
-                isRead: false  // Explicitly set as unread
-            )
-            messages.append(confirmationMessage)
-            
-            // Save state and notify observers
-            saveState()
-            objectWillChange.send()
-        }
+        // Record the transaction
+        let transaction = Transaction(
+            date: Date(),
+            description: "Started \(opportunity.title)",
+            amount: opportunity.setupCost,
+            isIncome: false
+        )
+        transactions.append(transaction)
+        
+        saveState()
     }
     
     private func convertOpportunityType(_ type: Opportunity.OpportunityType) -> BusinessOpportunity.OpportunityType {
@@ -1019,8 +1010,11 @@ class GameState: ObservableObject {
             nextMonth = Date() // Use current date instead of start of month
         }
         
+        // Get role details for salary
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return }
+        
         // Add salary to bank account
-        currentPlayer.bankBalance += currentPlayer.monthlySalary
+        currentPlayer.bankBalance += role.monthlySalary
         
         // Add revenue share from businesses
         for business in activeBusinesses {
@@ -1034,7 +1028,7 @@ class GameState: ObservableObject {
             senderName: "Quantum Bank",
             senderRole: "Payroll Department",
             timestamp: nextMonth,
-            content: "Your monthly salary of $\(Int(currentPlayer.monthlySalary)) has been deposited into your account.",
+            content: "Your monthly salary of $\(Int(role.monthlySalary)) has been deposited into your account.",
             opportunity: nil,
             isRead: false
         )
@@ -1286,6 +1280,189 @@ class GameState: ObservableObject {
         
         applyMarketUpdate(marketUpdate)
     }
+    
+    func addPost(_ post: Post) {
+        print("Adding new post: \(post.content)")
+        userPosts.insert(post, at: 0)
+        posts.insert(post, at: 0)  // Add to both arrays to ensure visibility
+        print("Current user posts count: \(userPosts.count)")
+        objectWillChange.send()
+    }
+    
+    func createAutoGeneratedPost(from opportunity: BusinessOpportunity) {
+        guard let socialContent = opportunity.socialPostContent else { return }
+        
+        // Instead of creating the post directly, set the draft post
+        draftPost = (
+            content: socialContent.defaultText,
+            images: socialContent.images,
+            opportunity: opportunity,
+            investment: nil
+        )
+        
+        // Post a notification to show the draft view
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowDraftPost"),
+            object: nil
+        )
+    }
+    
+    func createAutoGeneratedPost(for investment: Asset, action: String) {
+        let content: String
+        if action == "buy" {
+            content = "Just invested in \(investment.name) (\(investment.symbol)) 📈"
+        } else {
+            content = "Sold my position in \(investment.name) (\(investment.symbol)) 💰"
+        }
+        
+        // Set the draft post
+        draftPost = (
+            content: content,
+            images: [],
+            opportunity: nil,
+            investment: investment
+        )
+        
+        // Post a notification to show the draft view
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowDraftPost"),
+            object: nil
+        )
+    }
+    
+    func createExpensePost(expense: UnexpectedExpense) {
+        let content = "Just got hit with an unexpected expense: \(expense.title) for $\(String(format: "%.2f", expense.amount)) 😓"
+        
+        // Set the draft post
+        draftPost = (
+            content: content,
+            images: [],
+            opportunity: nil,
+            investment: nil
+        )
+        
+        // Post a notification to show the draft view
+        NotificationCenter.default.post(
+            name: NSNotification.Name("ShowDraftPost"),
+            object: nil
+        )
+    }
+    
+    // Add new function to get documents directory
+    private func getDocumentsDirectory() -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+    
+    // Add function to save image to file system
+    private func saveImageToFile(_ imageData: Data) -> String {
+        let filename = UUID().uuidString + ".jpg"
+        let fileURL = getDocumentsDirectory().appendingPathComponent(filename)
+        
+        do {
+            try imageData.write(to: fileURL)
+            return filename
+        } catch {
+            print("Error saving image: \(error)")
+            return ""
+        }
+    }
+    
+    // Add function to load image from file system
+    private func loadImageFromFile(_ filename: String) -> UIImage? {
+        let fileURL = getDocumentsDirectory().appendingPathComponent(filename)
+        if let imageData = try? Data(contentsOf: fileURL) {
+            return UIImage(data: imageData)
+        }
+        return nil
+    }
+    
+    // Update profile image handling
+    func updateProfileImage(_ imageData: Data) {
+        let filename = saveImageToFile(imageData)
+        profileImage = filename
+        saveState()
+        objectWillChange.send()
+    }
+    
+    // Update get profile image function
+    func getProfileImage() -> UIImage? {
+        guard let filename = profileImage else { return nil }
+        return loadImageFromFile(filename)
+    }
+    
+    var monthlyIncome: Double {
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return 0 }
+        var income = role.monthlySalary
+        
+        // Add business income if applicable
+        if hasStartup {
+            income += startupRevenue - startupExpenses
+        }
+        
+        // Add passive income from businesses
+        income += totalMonthlyBusinessIncome
+        
+        return income
+    }
+    
+    var monthlyExpenses: Double {
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return 0 }
+        var expenses = role.monthlyExpenses
+        
+        // Add child expenses
+        expenses += Double(currentPlayer.children) * role.expenses.perChild
+        
+        // Add credit card minimum payment (3% of balance)
+        if creditCardBalance > 0 {
+            expenses += creditCardBalance * 0.03
+        }
+        
+        return expenses
+    }
+    
+    var monthlyCashflow: Double {
+        monthlyIncome - monthlyExpenses
+    }
+    
+    func setRole(_ role: String) {
+        if Role.getRole(byTitle: role) != nil {
+            currentPlayer.role = role
+            saveState()
+        }
+    }
+    
+    func calculateMonthlyIncome() -> Double {
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return 0 }
+        var income = role.monthlySalary
+        
+        // Add business income
+        income += totalMonthlyBusinessIncome
+        
+        // Add investment returns (5% annual return = ~0.4% monthly)
+        let monthlyReturnRate = 0.004 // 0.4% monthly return
+        
+        let cryptoValue = cryptoPortfolio.assets.reduce(0.0) { $0 + ($1.currentPrice * $1.quantity) }
+        let equityValue = equityPortfolio.assets.reduce(0.0) { $0 + ($1.currentPrice * $1.quantity) }
+        
+        let cryptoReturns = cryptoValue * monthlyReturnRate
+        let equityReturns = equityValue * monthlyReturnRate
+        
+        income += cryptoReturns + equityReturns
+        
+        return income
+    }
+    
+    func calculateMonthlyExpenses() -> Double {
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return 0 }
+        var expenses = role.monthlyExpenses
+        expenses += Double(currentPlayer.children) * role.expenses.perChild
+        return expenses
+    }
+    
+    func canAffordOpportunity(_ opportunity: BusinessOpportunity) -> Bool {
+        let availableFunds = currentPlayer.bankBalance + currentPlayer.savingsBalance
+        return availableFunds >= opportunity.setupCost
+    }
 }
 
 // Structure to represent saved game data
@@ -1293,8 +1470,10 @@ struct SavedGameState: Codable {
     let events: [GameEvent]
     let eventLog: [String]
     let posts: [Post]
+    let userPosts: [Post]
     let player: Player
     let goal: Goal?
+    let profileImage: String?  // Filename of the saved image
     let transactions: [Transaction]
     let messages: [Message]
     let hasStartup: Bool

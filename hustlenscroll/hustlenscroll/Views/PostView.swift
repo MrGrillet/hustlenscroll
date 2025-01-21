@@ -165,9 +165,26 @@ struct PostHeader: View {
     let post: Post
     let isMarketUpdate: Bool
     let isTrendingTopic: Bool
+    @EnvironmentObject var gameState: GameState
     
     var body: some View {
         HStack {
+            // Profile Image
+            if (post.author == gameState.currentPlayer.name || post.author == gameState.profile?.name),
+               let profileImage = gameState.getProfileImage() {
+                Image(uiImage: profileImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.gray.opacity(0.2), lineWidth: 1))
+            } else {
+                Image(systemName: "person.circle.fill")
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .foregroundColor(.blue)
+            }
+            
             VStack(alignment: .leading) {
                 Text(post.author)
                     .font(.headline)
@@ -258,7 +275,7 @@ struct PostBody: View {
     @EnvironmentObject var gameState: GameState
     
     var body: some View {
-        Group {
+        VStack(alignment: .leading, spacing: 12) {
             if let investment = post.linkedInvestment {
                 InvestmentContent(investment: investment, content: post.content)
             } else if isMarketUpdate, let update = gameState.currentMarketUpdate {
@@ -268,6 +285,23 @@ struct PostBody: View {
                     .font(.body)
                     .foregroundColor(.primary)
                     .multilineTextAlignment(.leading)
+                
+                if !post.images.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(post.images, id: \.self) { imageString in
+                                if let imageData = Data(base64Encoded: imageString),
+                                   let uiImage = UIImage(data: imageData) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 200, height: 200)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

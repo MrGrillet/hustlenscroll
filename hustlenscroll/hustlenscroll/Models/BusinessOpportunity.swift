@@ -15,6 +15,12 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
     let revenueShare: Double
     var currentExitMultiple: Double
     let symbol: String
+    let socialPostContent: SocialPostContent?
+    
+    struct SocialPostContent: Codable, Hashable {
+        let defaultText: String
+        let images: [String]
+    }
     
     // Implement hash(into:) for Hashable conformance
     func hash(into hasher: inout Hasher) {
@@ -65,7 +71,8 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
         revenueShare: Double = 100.0,
         type: EventType = .opportunity,
         currentExitMultiple: Double? = nil,
-        symbol: String
+        symbol: String,
+        socialPostContent: SocialPostContent? = nil
     ) {
         self.id = id
         self.title = title
@@ -80,5 +87,6 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
         self.revenueShare = revenueShare
         self.currentExitMultiple = currentExitMultiple ?? potentialSaleMultiple
         self.symbol = symbol
+        self.socialPostContent = socialPostContent
     }
 } 

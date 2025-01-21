@@ -39,6 +39,16 @@ enum Goal: String, Identifiable, CaseIterable, Equatable, Codable {
         }
     }
     
+    var requirements: String {
+        switch self {
+        case .lamborghini: return "• Stable income of at least $10,000/month\n• Good credit score for financing\n• Savings for down payment and maintenance"
+        case .mansion: return "• Net worth of at least $1,000,000\n• Stable income of $50,000/month\n• Excellent credit score for mortgage"
+        case .yacht: return "• Net worth of at least $2,000,000\n• Monthly maintenance budget of $20,000\n• Experience with marine operations"
+        case .retirement: return "• Monthly passive income exceeding expenses\n• Investment portfolio generating $15,000/month\n• All debts paid off"
+        case .startup: return "• Viable business plan\n• Initial seed funding of $100,000\n• Strong network in target industry"
+        }
+    }
+    
     var price: Double {
         switch self {
         case .lamborghini: return 500_000
