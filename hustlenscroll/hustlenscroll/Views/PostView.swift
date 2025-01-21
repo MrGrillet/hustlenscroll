@@ -40,9 +40,11 @@ struct PostView: View {
             isTrendingTopic: isTrendingTopic
         )
         .sheet(isPresented: $showingInvestmentDetail) {
-            if let investment = post.linkedInvestment {
-                InvestmentDetailView(investment: investment, showingInvestmentDetail: $showingInvestmentDetail, activeSheet: $activeSheet)
-            }
+            InvestmentDetailView(
+                investment: post.linkedInvestment,
+                showingInvestmentDetail: $showingInvestmentDetail,
+                activeSheet: $activeSheet
+            )
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -104,16 +106,8 @@ struct PostButton: View {
     
     var body: some View {
         Button(action: {
-            if post.linkedInvestment != nil {
+            if post.linkedInvestment != nil || isMarketUpdate {
                 showingInvestmentDetail = true
-            } else if isMarketUpdate, let update = gameState.currentMarketUpdate {
-                if let assetUpdate = update.updates.first {
-                    if assetUpdate.type == .startup {
-                        activeSheet = .startupUpdate
-                    } else {
-                        activeSheet = .tradingUpdate
-                    }
-                }
             } else if isTrendingTopic {
                 activeSheet = .trending
             }
@@ -679,7 +673,7 @@ struct NoBusinessesView: View {
 
 // MARK: - Investment Detail View
 struct InvestmentDetailView: View {
-    let investment: Asset
+    let investment: Asset?
     @Binding var showingInvestmentDetail: Bool
     @Binding var activeSheet: PostView.ActiveSheet?
     @EnvironmentObject var gameState: GameState
@@ -688,9 +682,12 @@ struct InvestmentDetailView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    AssetInformationCard(investment: investment)
-                    HoldingsCard(investment: investment, showingInvestmentDetail: $showingInvestmentDetail)
-                    TradeButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
+                    if let investment = investment {
+                        AssetInformationCard(investment: investment)
+                    } else if let update = gameState.currentMarketUpdate?.updates.first {
+                        MarketUpdateCard(assetUpdate: update)
+                    }
+                    OpenTradingAppButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
                 }
                 .padding()
             }
@@ -698,6 +695,27 @@ struct InvestmentDetailView: View {
                 showingInvestmentDetail = false
             })
         }
+    }
+}
+
+// MARK: - Trade Button
+struct OpenTradingAppButton: View {
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @Binding var showingInvestmentDetail: Bool
+    
+    var body: some View {
+        Button(action: {
+            activeSheet = .investmentPurchase
+            showingInvestmentDetail = false
+        }) {
+            Text("Open Trading App")
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(8)
+        }
+        .padding(.top)
     }
 }
 
@@ -722,117 +740,6 @@ struct AssetInformationCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.gray.opacity(0.1))
         .cornerRadius(12)
-    }
-}
-
-// MARK: - Holdings Card
-struct HoldingsCard: View {
-    let investment: Asset
-    @Binding var showingInvestmentDetail: Bool
-    @EnvironmentObject var gameState: GameState
-    
-    private var holdings: (quantity: Double, currentValue: Double) {
-        getHoldings(for: investment.symbol)
-    }
-    
-    var body: some View {
-        if holdings.quantity > 0 {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Your Holdings")
-                    .font(.headline)
-                Text("Quantity: \(holdings.quantity, specifier: "%.4f")")
-                Text("Current Value: $\(holdings.currentValue, specifier: "%.2f")")
-                
-                Button(action: {
-                    sellAllHoldings(for: investment.symbol)
-                    showingInvestmentDetail = false
-                }) {
-                    Text("Sell All Holdings")
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .cornerRadius(8)
-                }
-            }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(12)
-        }
-    }
-    
-    private func getHoldings(for symbol: String) -> (quantity: Double, currentValue: Double) {
-        // Check crypto portfolio
-        if let asset = gameState.cryptoPortfolio.assets.first(where: { $0.symbol == symbol }) {
-            return (asset.quantity, asset.quantity * asset.currentPrice)
-        }
-        // Check equity portfolio
-        if let asset = gameState.equityPortfolio.assets.first(where: { $0.symbol == symbol }) {
-            return (asset.quantity, asset.quantity * asset.currentPrice)
-        }
-        return (0, 0)
-    }
-    
-    private func sellAllHoldings(for symbol: String) {
-        // Try to sell from crypto portfolio
-        if let index = gameState.cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
-            let asset = gameState.cryptoPortfolio.assets[index]
-            let saleValue = asset.quantity * asset.currentPrice
-            gameState.currentPlayer.bankBalance += saleValue
-            
-            // Record transaction
-            gameState.transactions.append(Transaction(
-                date: Date(),
-                description: "Sell \(asset.symbol) Crypto",
-                amount: saleValue,
-                isIncome: true
-            ))
-            
-            gameState.cryptoPortfolio.assets.remove(at: index)
-            gameState.saveState()
-            gameState.objectWillChange.send()
-            return
-        }
-        
-        // Try to sell from equity portfolio
-        if let index = gameState.equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
-            let asset = gameState.equityPortfolio.assets[index]
-            let saleValue = asset.quantity * asset.currentPrice
-            gameState.currentPlayer.bankBalance += saleValue
-            
-            // Record transaction
-            gameState.transactions.append(Transaction(
-                date: Date(),
-                description: "Sell \(asset.symbol) Stock",
-                amount: saleValue,
-                isIncome: true
-            ))
-            
-            gameState.equityPortfolio.assets.remove(at: index)
-            gameState.saveState()
-            gameState.objectWillChange.send()
-        }
-    }
-}
-
-// MARK: - Trade Button
-struct TradeButton: View {
-    @Binding var activeSheet: PostView.ActiveSheet?
-    @Binding var showingInvestmentDetail: Bool
-    
-    var body: some View {
-        Button(action: {
-            activeSheet = .investmentPurchase
-            showingInvestmentDetail = false
-        }) {
-            Text("Trade")
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .cornerRadius(8)
-        }
-        .padding(.top)
     }
 }
 
