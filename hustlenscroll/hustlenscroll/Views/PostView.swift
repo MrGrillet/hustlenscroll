@@ -50,31 +50,16 @@ struct PostView: View {
             switch sheet {
             case .trending:
                 TrendingTopicView(post: post)
-            case .investmentPurchase:
-                if let update = gameState.currentMarketUpdate?.updates.first {
-                    if update.type == .startup {
-                        MarketUpdateView(
-                            post: post,
-                            activeSheet: $activeSheet,
-                            selectedBusinesses: $selectedBusinesses
-                        )
-                    } else {
-                        TradingView(
-                            post: post,
-                            activeSheet: $activeSheet
-                        )
-                    }
-                }
+            case .investmentPurchase, .tradingUpdate:
+                TradingView(
+                    post: post,
+                    activeSheet: $activeSheet
+                )
             case .startupUpdate:
                 MarketUpdateView(
                     post: post,
                     activeSheet: $activeSheet,
                     selectedBusinesses: $selectedBusinesses
-                )
-            case .tradingUpdate:
-                TradingView(
-                    post: post,
-                    activeSheet: $activeSheet
                 )
             }
         }
@@ -392,7 +377,7 @@ struct MarketUpdateView: View {
                     }
                     .padding()
                 }
-                .navigationTitle("Market Update")
+                .navigationTitle("Business Broker")
                 .navigationBarItems(trailing: Button("Close") {
                     activeSheet = nil
                 })
@@ -407,10 +392,6 @@ struct BrokerInfoCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Company Broker")
-                .font(.title2)
-                .bold()
-            
             Text(description)
                 .font(.body)
                 .foregroundColor(.secondary)
@@ -684,10 +665,19 @@ struct InvestmentDetailView: View {
                 VStack(spacing: 20) {
                     if let investment = investment {
                         AssetInformationCard(investment: investment)
+                        if investment.type == .startup {
+                            BusinessBrokerButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
+                        } else {
+                            TradingAppButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
+                        }
                     } else if let update = gameState.currentMarketUpdate?.updates.first {
                         MarketUpdateCard(assetUpdate: update)
+                        if update.type == .startup {
+                            BusinessBrokerButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
+                        } else {
+                            TradingAppButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
+                        }
                     }
-                    OpenTradingAppButton(activeSheet: $activeSheet, showingInvestmentDetail: $showingInvestmentDetail)
                 }
                 .padding()
             }
@@ -698,8 +688,8 @@ struct InvestmentDetailView: View {
     }
 }
 
-// MARK: - Trade Button
-struct OpenTradingAppButton: View {
+// MARK: - Trading App Button
+struct TradingAppButton: View {
     @Binding var activeSheet: PostView.ActiveSheet?
     @Binding var showingInvestmentDetail: Bool
     
@@ -709,6 +699,27 @@ struct OpenTradingAppButton: View {
             showingInvestmentDetail = false
         }) {
             Text("Open Trading App")
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(8)
+        }
+        .padding(.top)
+    }
+}
+
+// MARK: - Business Broker Button
+struct BusinessBrokerButton: View {
+    @Binding var activeSheet: PostView.ActiveSheet?
+    @Binding var showingInvestmentDetail: Bool
+    
+    var body: some View {
+        Button(action: {
+            activeSheet = .startupUpdate
+            showingInvestmentDetail = false
+        }) {
+            Text("Open Business Broker")
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding()

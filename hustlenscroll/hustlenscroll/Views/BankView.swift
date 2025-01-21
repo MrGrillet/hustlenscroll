@@ -18,11 +18,6 @@ struct BankView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 30) {
-                    if let roleDetails = Role.getRole(byTitle: gameState.currentPlayer.role) {
-                        Text("Monthly Salary: $\(Int(roleDetails.monthlySalary).formattedWithSeparator)")
-                            .font(.headline)
-                            .padding()
-                    }
                     // Personal Accounts Section
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Personal Accounts")
