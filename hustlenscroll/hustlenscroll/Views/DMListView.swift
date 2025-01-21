@@ -14,22 +14,24 @@ struct DMListView: View {
         // First group messages by sender
         let threads = Dictionary(grouping: filteredMessages) { $0.senderId }
             .map { senderId, messages in
-                // Sort messages within each thread by timestamp, most recent first
-                let sortedMessages = messages.sorted { $0.timestamp > $1.timestamp }
-                let latestMessage = sortedMessages.first
+                // Get the latest message for this thread
+                let latestMessage = messages.max(by: { $0.timestamp < $1.timestamp })!
+                
+                // Sort messages chronologically for the thread view
+                let sortedMessages = messages.sorted { $0.timestamp < $1.timestamp }
                 
                 return MessageThread(
                     senderId: senderId,
-                    senderName: latestMessage?.senderName ?? messages[0].senderName,
-                    senderRole: latestMessage?.senderRole ?? messages[0].senderRole,
+                    senderName: latestMessage.senderName,
+                    senderRole: latestMessage.senderRole,
                     messageIds: sortedMessages.map { $0.id },
                     hasUnread: messages.contains { !$0.isRead },
-                    lastMessageTimestamp: latestMessage?.timestamp ?? Date.distantPast,
-                    isArchived: latestMessage?.isArchived ?? messages[0].isArchived
+                    lastMessageTimestamp: latestMessage.timestamp,
+                    isArchived: latestMessage.isArchived
                 )
             }
         
-        // Then sort threads by their most recent message timestamp
+        // Sort threads by timestamp, newest first
         return threads.sorted { $0.lastMessageTimestamp > $1.lastMessageTimestamp }
     }
     
@@ -113,6 +115,7 @@ struct MessageThreadRow: View {
                     Text(formattedTimestamp)
                         .font(.caption)
                         .foregroundColor(.gray)
+                        .hidden()
                 }
                 Text(thread.senderRole)
                     .font(.subheadline)

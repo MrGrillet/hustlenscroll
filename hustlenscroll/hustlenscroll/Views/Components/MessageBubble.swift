@@ -90,6 +90,7 @@ struct MessageBubble: View {
                 Text(formatTimestamp(message.timestamp))
                     .font(.caption)
                     .foregroundColor(.gray)
+                    .hidden()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
