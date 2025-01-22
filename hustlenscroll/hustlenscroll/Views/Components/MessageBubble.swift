@@ -23,7 +23,8 @@ struct MessageBubble: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
                     .padding()
-                    .background(isUserMessage ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+                    .foregroundColor(isUserMessage ? .white : .black)
+                    .background(isUserMessage ? Color.black : Color.gray.opacity(0.1))
                     .cornerRadius(12)
                 
                 // Opportunity details if present
