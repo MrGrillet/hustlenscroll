@@ -864,6 +864,7 @@ class GameState: ObservableObject {
         case opportunity(OpportunitySize)
         case payday
         case expense
+        case baby
         
         enum OpportunitySize {
             case small
@@ -871,15 +872,25 @@ class GameState: ObservableObject {
         }
         
         static func random() -> DayType {
-            let random = Int.random(in: 1...10)
+            let random = Int.random(in: 1...24) // Match board game's 24 segments
             switch random {
-            case 1...4: // 40% chance for opportunity
+            case 1: // Baby (1/24)
+                return .baby
+            case 2...13: // Opportunities (12/24 = 50%)
                 let isLarge = Bool.random()
                 return .opportunity(isLarge ? .large : .small)
-            case 5...8: // 40% chance for payday
+            case 14...16: // Paychecks (3/24)
                 return .payday
-            default: // 20% chance for expense
+            case 17...19: // Markets (3/24)
+                return .opportunity(.small) // Using small opportunities for market events
+            case 20...22: // Doodads/Expenses (3/24)
                 return .expense
+            case 23: // Charity (1/24)
+                return .expense // Using expense type for charity
+            case 24: // Downsized (1/24)
+                return .expense // Using expense type for downsizing
+            default:
+                return .opportunity(.small) // Fallback, should never happen
             }
         }
     }
@@ -910,6 +921,8 @@ class GameState: ObservableObject {
             handlePayday()
         case .expense:
             generateUnexpectedExpense()
+        case .baby:
+            handleBabyEvent()
         }
         
         saveState()
@@ -1128,9 +1141,11 @@ class GameState: ObservableObject {
         case .personal:
             return UnexpectedExpense.expenseSenders[0] // Mom
         case .business:
-            return UnexpectedExpense.expenseSenders[1] // Shope Johnson
+            return UnexpectedExpense.expenseSenders[1] // Steven Johnson
         case .tech, .crypto:
             return UnexpectedExpense.expenseSenders[2] // Chloe S
+        case .girlfriend:
+            return UnexpectedExpense.expenseSenders[3] // Zoey
         }
     }
     
@@ -1351,6 +1366,7 @@ class GameState: ObservableObject {
         userPosts.insert(post, at: 0)
         posts.insert(post, at: 0)  // Add to both arrays to ensure visibility
         print("Current user posts count: \(userPosts.count)")
+        saveState()  // Save state immediately after adding post
         objectWillChange.send()
     }
     
@@ -1569,6 +1585,61 @@ class GameState: ObservableObject {
         print("  - Unread messages: \(messages.filter { !$0.isRead }.count)")
         let threads = Dictionary(grouping: messages, by: { $0.senderId })
         print("  - Total threads: \(threads.count)")
+    }
+    
+    private func handleBabyEvent() {
+        // Only proceed if player can have more children (max 3)
+        guard currentPlayer.children < 3 else { return }
+        
+        // Get role details for child expenses
+        guard let role = Role.getRole(byTitle: currentPlayer.role) else { return }
+        
+        // Add a child
+        currentPlayer.children += 1
+        
+        // Record the new monthly expense transaction
+        transactions.append(Transaction(
+            date: Date(),
+            description: "New Monthly Child Expense",
+            amount: role.expenses.perChild,
+            isIncome: false
+        ))
+        
+        // Create announcement message
+        let babyMessage = Message(
+            senderId: "girlfriend",
+            senderName: "Zoey",
+            senderRole: "Family",
+            timestamp: Date(),
+            content: """
+            🎉 Honey... I have something to tell you... We're having a baby! 🍼
+            
+            Monthly child expenses: $\(Int(role.expenses.perChild))
+            Total monthly child expenses: $\(Int(role.expenses.perChild * Double(currentPlayer.children)))
+            Total children: \(currentPlayer.children)
+            
+            This expense has been added to our monthly expenses.
+            """,
+            isRead: false
+        )
+        
+        // Add message
+        messages.append(babyMessage)
+        
+        // Create social post about the baby
+        let post = Post(
+            id: UUID(),
+            author: currentPlayer.name,
+            role: currentPlayer.role,
+            content: "🍼 Exciting news! @Zoey and I are having a baby! #BabyJoy #NewParent",
+            timestamp: Date(),
+            isSponsored: false
+        )
+        posts.insert(post, at: 0)
+        
+        // Save state and update UI
+        saveState()
+        objectWillChange.send()
     }
 }
 

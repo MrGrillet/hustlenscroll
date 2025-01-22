@@ -94,6 +94,7 @@ struct UnexpectedExpense: GameEventProtocol, Identifiable, Codable {
         case business
         case crypto
         case tech
+        case girlfriend
     }
     
     struct ExpenseSender: Codable {
@@ -105,10 +106,44 @@ struct UnexpectedExpense: GameEventProtocol, Identifiable, Codable {
     static let expenseSenders = [
         ExpenseSender(name: "Mom", role: "Family", id: "mom"),
         ExpenseSender(name: "Steven Johnson", role: "Accountant", id: "accountant"),
-        ExpenseSender(name: "Chloe S", role: "Community Manager", id: "workspace")
+        ExpenseSender(name: "Chloe S", role: "Community Manager", id: "workspace"),
+        ExpenseSender(name: "Zoey", role: "Family", id: "girlfriend")
     ]
     
     static let predefinedExpenses: [UnexpectedExpense] = [
+        // Zoey's expenses - girlfriend related expenses
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Birthday Coming Up",
+            description: "Hey babe, my birthday is next week! I've been eyeing that new designer bag... 👜✨",
+            amount: 2500,
+            isUrgent: false,
+            category: .girlfriend
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Anniversary Plans",
+            description: "Our anniversary is coming up! Can we plan something special? Maybe that fancy restaurant? 🍷",
+            amount: 800,
+            isUrgent: false,
+            category: .girlfriend
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Holiday Gift",
+            description: "Christmas is around the corner! I made a wishlist... 🎁",
+            amount: 1500,
+            isUrgent: false,
+            category: .girlfriend
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Valentine's Day",
+            description: "Valentine's Day is coming up! Can't wait to see what you have planned... 💝",
+            amount: 1000,
+            isUrgent: false,
+            category: .girlfriend
+        ),
         // Mom's expenses - family and personal emergencies
         UnexpectedExpense(
             id: UUID(),

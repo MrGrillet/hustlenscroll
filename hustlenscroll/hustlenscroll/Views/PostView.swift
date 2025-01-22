@@ -6,6 +6,7 @@ struct PostView: View {
     @State private var activeSheet: ActiveSheet?
     @State private var selectedBusinesses: Set<BusinessOpportunity> = []
     @EnvironmentObject var gameState: GameState
+    @State private var selectedPost: Post?
     
     enum ActiveSheet: Identifiable {
         case trending
@@ -23,44 +24,57 @@ struct PostView: View {
         }
     }
     
-    var isTrendingTopic: Bool {
-        post.isSponsored && post.linkedInvestment == nil && !isMarketUpdate
-    }
-    
-    var isMarketUpdate: Bool {
-        post.author == "MarketWatch" && post.role == "Market Analysis" && gameState.currentMarketUpdate != nil
-    }
-    
     var body: some View {
-        PostButton(
-            post: post,
-            showingInvestmentDetail: $showingInvestmentDetail,
-            activeSheet: $activeSheet,
-            isMarketUpdate: isMarketUpdate,
-            isTrendingTopic: isTrendingTopic
-        )
-        .sheet(isPresented: $showingInvestmentDetail) {
-            InvestmentDetailView(
-                investment: post.linkedInvestment,
-                showingInvestmentDetail: $showingInvestmentDetail,
-                activeSheet: $activeSheet
-            )
-        }
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .trending:
-                TrendingTopicView(post: post)
-            case .investmentPurchase, .tradingUpdate:
-                TradingView(
-                    post: post,
-                    activeSheet: $activeSheet
-                )
-            case .startupUpdate:
-                MarketUpdateView(
-                    post: post,
-                    activeSheet: $activeSheet,
-                    selectedBusinesses: $selectedBusinesses
-                )
+        GeometryReader { geometry in
+            let isIPad = geometry.size.width >= 768
+            let maxWidth: CGFloat = isIPad ? 600 : geometry.size.width
+            
+            ScrollView {
+                PostRowView(post: post)
+                    .onTapGesture {
+                        if post.linkedOpportunity != nil {
+                            selectedPost = post
+                            showingInvestmentDetail = true
+                        } else if post.linkedInvestment != nil {
+                            selectedPost = post
+                            showingInvestmentDetail = true
+                        }
+                    }
+                    .frame(maxWidth: maxWidth)
+                    .frame(maxWidth: .infinity)
+                    .background(isIPad ? Color(.systemGray6) : Color.clear)
+                    .sheet(isPresented: $showingInvestmentDetail) {
+                        if let post = selectedPost {
+                            InvestmentDetailView(
+                                investment: post.linkedInvestment,
+                                showingInvestmentDetail: $showingInvestmentDetail,
+                                activeSheet: $activeSheet
+                            )
+                        }
+                    }
+                    .sheet(item: $activeSheet) { sheet in
+                        switch sheet {
+                        case .trending:
+                            if let post = selectedPost {
+                                TrendingTopicView(post: post)
+                            }
+                        case .investmentPurchase, .tradingUpdate:
+                            if let post = selectedPost {
+                                TradingView(
+                                    post: post,
+                                    activeSheet: $activeSheet
+                                )
+                            }
+                        case .startupUpdate:
+                            if let post = selectedPost {
+                                MarketUpdateView(
+                                    post: post,
+                                    activeSheet: $activeSheet,
+                                    selectedBusinesses: $selectedBusinesses
+                                )
+                            }
+                        }
+                    }
             }
         }
     }
@@ -165,7 +179,7 @@ struct PostHeader: View {
             }
             
             VStack(alignment: .leading) {
-                Text(post.author)
+                Text(post.userHandle)
                     .font(.headline)
                     .foregroundColor(.primary)
                 Text(post.role)
