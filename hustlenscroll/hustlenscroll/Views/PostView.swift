@@ -2,79 +2,74 @@ import SwiftUI
 
 struct PostView: View {
     let post: Post
+    let maxWidth: CGFloat?
+    let isIPad: Bool
     @State private var showingInvestmentDetail = false
     @State private var activeSheet: ActiveSheet?
-    @State private var selectedBusinesses: Set<BusinessOpportunity> = []
-    @EnvironmentObject var gameState: GameState
     @State private var selectedPost: Post?
+    @State private var selectedBusinesses = Set<BusinessOpportunity>()
+    @EnvironmentObject var gameState: GameState
     
     enum ActiveSheet: Identifiable {
         case trending
         case investmentPurchase
-        case startupUpdate
         case tradingUpdate
+        case startupUpdate
         
         var id: Int {
             switch self {
             case .trending: return 1
             case .investmentPurchase: return 2
-            case .startupUpdate: return 3
-            case .tradingUpdate: return 4
+            case .tradingUpdate: return 3
+            case .startupUpdate: return 4
             }
         }
     }
     
     var body: some View {
-        GeometryReader { geometry in
-            let isIPad = geometry.size.width >= 768
-            let maxWidth: CGFloat = isIPad ? 600 : geometry.size.width
-            
-            ScrollView {
-                PostRowView(post: post)
-                    .onTapGesture {
-                        if post.linkedOpportunity != nil {
-                            selectedPost = post
-                            showingInvestmentDetail = true
-                        } else if post.linkedInvestment != nil {
-                            selectedPost = post
-                            showingInvestmentDetail = true
-                        }
+        VStack {
+            PostButton(
+                post: post,
+                showingInvestmentDetail: $showingInvestmentDetail,
+                activeSheet: $activeSheet,
+                selectedPost: $selectedPost,
+                isMarketUpdate: post.linkedMarketUpdate != nil,
+                isTrendingTopic: false
+            )
+            .frame(maxWidth: maxWidth)
+            .frame(maxWidth: .infinity)
+            .background(isIPad ? Color(.systemGray6) : Color.clear)
+            .sheet(isPresented: $showingInvestmentDetail) {
+                if let post = selectedPost {
+                    InvestmentDetailView(
+                        investment: post.linkedInvestment,
+                        showingInvestmentDetail: $showingInvestmentDetail,
+                        activeSheet: $activeSheet
+                    )
+                }
+            }
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .trending:
+                    if let post = selectedPost {
+                        TrendingTopicView(post: post)
                     }
-                    .frame(maxWidth: maxWidth)
-                    .frame(maxWidth: .infinity)
-                    .background(isIPad ? Color(.systemGray6) : Color.clear)
-                    .sheet(isPresented: $showingInvestmentDetail) {
-                        if let post = selectedPost {
-                            InvestmentDetailView(
-                                investment: post.linkedInvestment,
-                                showingInvestmentDetail: $showingInvestmentDetail,
-                                activeSheet: $activeSheet
-                            )
-                        }
+                case .investmentPurchase, .tradingUpdate:
+                    if let post = selectedPost {
+                        TradingView(
+                            post: post,
+                            activeSheet: $activeSheet
+                        )
                     }
-                    .sheet(item: $activeSheet) { sheet in
-                        switch sheet {
-                        case .trending:
-                            if let post = selectedPost {
-                                TrendingTopicView(post: post)
-                            }
-                        case .investmentPurchase, .tradingUpdate:
-                            if let post = selectedPost {
-                                TradingView(
-                                    post: post,
-                                    activeSheet: $activeSheet
-                                )
-                            }
-                        case .startupUpdate:
-                            if let post = selectedPost {
-                                MarketUpdateView(
-                                    post: post,
-                                    activeSheet: $activeSheet,
-                                    selectedBusinesses: $selectedBusinesses
-                                )
-                            }
-                        }
+                case .startupUpdate:
+                    if let post = selectedPost {
+                        MarketUpdateView(
+                            post: post,
+                            activeSheet: $activeSheet,
+                            selectedBusinesses: $selectedBusinesses
+                        )
                     }
+                }
             }
         }
     }
@@ -99,14 +94,18 @@ struct PostButton: View {
     let post: Post
     @Binding var showingInvestmentDetail: Bool
     @Binding var activeSheet: PostView.ActiveSheet?
+    @Binding var selectedPost: Post?
     let isMarketUpdate: Bool
     let isTrendingTopic: Bool
     @EnvironmentObject var gameState: GameState
     
     var body: some View {
         Button(action: {
-            if post.linkedInvestment != nil || isMarketUpdate {
+            if post.linkedInvestment != nil {
                 showingInvestmentDetail = true
+            } else if post.linkedMarketUpdate != nil {
+                selectedPost = post
+                activeSheet = .tradingUpdate
             } else if isTrendingTopic {
                 activeSheet = .trending
             }
@@ -271,7 +270,8 @@ struct PostBody: View {
         VStack(alignment: .leading, spacing: 12) {
             if let investment = post.linkedInvestment {
                 InvestmentContent(investment: investment, content: post.content)
-            } else if isMarketUpdate, let update = gameState.currentMarketUpdate {
+            } else if let marketUpdate = post.linkedMarketUpdate,
+                      let update = marketUpdate.updates.first {
                 MarketUpdateContent(update: update, content: post.content)
             } else {
                 Text(post.content)
@@ -322,34 +322,27 @@ struct InvestmentContent: View {
 
 // MARK: - Market Update Content
 struct MarketUpdateContent: View {
-    let update: MarketUpdate
+    let update: MarketUpdate.Update
     let content: String
     
     var body: some View {
-        if let assetUpdate = update.updates.first {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("\(getAssetName(for: assetUpdate.symbol)) (\(assetUpdate.symbol))")
-                    .font(.headline)
-                if assetUpdate.type == .startup {
-                    if let multiple = assetUpdate.newMultiple {
-                        Text("Current Multiple: \(multiple, specifier: "%.1f")x")
-                            .font(.subheadline)
-                    }
-                } else {
-                    Text("Current Price: $\(assetUpdate.newPrice, specifier: "%.2f")")
+        VStack(alignment: .leading, spacing: 8) {
+            Text("\(getAssetName(for: update.symbol)) (\(update.symbol))")
+                .font(.headline)
+            if update.type == .startup {
+                if let multiple = update.newMultiple {
+                    Text("Current Multiple: \(multiple, specifier: "%.1f")x")
                         .font(.subheadline)
                 }
-                Text(assetUpdate.message)
-                    .font(.body)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-                    .padding(.top, 4)
+            } else {
+                Text("Current Price: $\(update.newPrice, specifier: "%.2f")")
+                    .font(.subheadline)
             }
-        } else {
-            Text(content)
+            Text(update.message)
                 .font(.body)
                 .foregroundColor(.primary)
                 .multilineTextAlignment(.leading)
+                .padding(.top, 4)
         }
     }
     

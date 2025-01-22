@@ -136,7 +136,7 @@ struct FeedPostView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            if post.linkedOpportunity != nil || post.linkedInvestment != nil {
+            if post.linkedOpportunity != nil || post.linkedInvestment != nil || post.linkedMarketUpdate != nil {
                 showingInvestmentDetail = true
             }
         }

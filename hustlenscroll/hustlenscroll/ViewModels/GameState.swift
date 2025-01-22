@@ -865,6 +865,10 @@ class GameState: ObservableObject {
         case payday
         case expense
         case baby
+        case cryptoUpdate
+        case equityUpdate
+        case cryptoDM
+        case startupExit
         
         enum OpportunitySize {
             case small
@@ -872,46 +876,65 @@ class GameState: ObservableObject {
         }
         
         static func random() -> DayType {
-            let random = Int.random(in: 1...24) // Match board game's 24 segments
-            switch random {
-            case 1: // Baby (1/24)
+            let random = Double.random(in: 0...100)
+            var cumulativeProbability = 0.0
+            
+            // Baby: 1/360 = ~0.28%
+            cumulativeProbability += 0.28
+            if random < cumulativeProbability {
                 return .baby
-            case 2...13: // Opportunities (12/24 = 50%)
+            }
+            
+            // Unwanted expenses: 12/360 = ~3.33%
+            cumulativeProbability += 3.33
+            if random < cumulativeProbability {
+                return .expense
+            }
+            
+            // Paydays: 24/360 = ~6.67%
+            cumulativeProbability += 6.67
+            if random < cumulativeProbability {
+                return .payday
+            }
+            
+            // Startup opportunities: 24/360 = ~6.67%
+            cumulativeProbability += 6.67
+            if random < cumulativeProbability {
                 let isLarge = Bool.random()
                 return .opportunity(isLarge ? .large : .small)
-            case 14...16: // Paychecks (3/24)
-                return .payday
-            case 17...19: // Markets (3/24)
-                return .opportunity(.small) // Using small opportunities for market events
-            case 20...22: // Doodads/Expenses (3/24)
-                return .expense
-            case 23: // Charity (1/24)
-                return .expense // Using expense type for charity
-            case 24: // Downsized (1/24)
-                return .expense // Using expense type for downsizing
-            default:
-                return .opportunity(.small) // Fallback, should never happen
             }
+            
+            // Startup exits: 10/360 = ~2.78%
+            cumulativeProbability += 2.78
+            if random < cumulativeProbability {
+                return .startupExit
+            }
+            
+            // Equity updates: 24/360 = ~6.67%
+            cumulativeProbability += 6.67
+            if random < cumulativeProbability {
+                return .equityUpdate
+            }
+            
+            // Crypto updates: 40/360 = ~11.11%
+            cumulativeProbability += 11.11
+            if random < cumulativeProbability {
+                return .cryptoUpdate
+            }
+            
+            // Crypto DMs: 48/360 = ~13.33%
+            cumulativeProbability += 13.33
+            if random < cumulativeProbability {
+                return .cryptoDM
+            }
+            
+            // If none of the above, default to small opportunity
+            return .opportunity(.small)
         }
     }
     
     // Add these functions to GameState
     func advanceDay() {
-        // Add new filler posts
-        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 2...4))
-        posts.insert(contentsOf: newPosts, at: 0)
-        
-        // Sometimes add a market update (30% chance)
-        if Double.random(in: 0...1) < 0.3 {
-            let update = MarketUpdate.generateRandomUpdate()
-            applyMarketUpdate(update)
-        }
-        
-        // Limit total posts to prevent memory issues
-        if posts.count > 100 {
-            posts = Array(posts.prefix(100))
-        }
-        
         let dayType = DayType.random()
         
         switch dayType {
@@ -923,6 +946,23 @@ class GameState: ObservableObject {
             generateUnexpectedExpense()
         case .baby:
             handleBabyEvent()
+        case .cryptoUpdate:
+            handleCryptoUpdate()
+        case .equityUpdate:
+            handleEquityUpdate()
+        case .cryptoDM:
+            handleCryptoDM()
+        case .startupExit:
+            checkStartupExitOpportunities()
+        }
+        
+        // Add new filler posts after market updates
+        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 2...4))
+        posts.insert(contentsOf: newPosts, at: 0)
+        
+        // Limit total posts to prevent memory issues
+        if posts.count > 100 {
+            posts = Array(posts.prefix(100))
         }
         
         saveState()
@@ -1192,19 +1232,58 @@ class GameState: ObservableObject {
         objectWillChange.send()
     }
     
-    // Add this function to apply market updates
+    // Add this function to create an investment opportunity from a market update
+    private func createInvestmentFromUpdate(_ update: MarketUpdate.Update) -> Asset? {
+        let currentPrice = update.newPrice
+        
+        switch update.type {
+        case .crypto:
+            return Asset(
+                symbol: update.symbol,
+                name: getAssetName(for: update.symbol),
+                quantity: 1.0,  // Placeholder quantity
+                currentPrice: currentPrice,
+                purchasePrice: currentPrice,
+                type: .crypto
+            )
+        case .stock:
+            return Asset(
+                symbol: update.symbol,
+                name: getAssetName(for: update.symbol),
+                quantity: 1.0,  // Placeholder quantity
+                currentPrice: currentPrice,
+                purchasePrice: currentPrice,
+                type: .stock
+            )
+        default:
+            return nil
+        }
+    }
+
+    // Update the applyMarketUpdate function
     func applyMarketUpdate(_ update: MarketUpdate) {
         currentMarketUpdate = update
+        
+        // Create investment opportunity if price dropped
+        var linkedInvestment: Asset? = nil
+        if let firstUpdate = update.updates.first,
+           let asset = createInvestmentFromUpdate(firstUpdate) {
+            // Only suggest investment if price dropped (buying opportunity)
+            if firstUpdate.newPrice < getCurrentPrice(for: firstUpdate.symbol) {
+                linkedInvestment = asset
+            }
+        }
         
         // Create the market update post
         let post = Post(
             author: "MarketWatch",
             role: "Market Analysis",
-            content: "\(update.title)\n\n\(update.description)",
+            content: update.updates.first?.message ?? "Market Update",  // Use the price change message directly
             timestamp: Date(),
             isSponsored: true,
             linkedOpportunity: nil,
-            linkedInvestment: nil  // We'll handle the investment through the market update UI
+            linkedInvestment: linkedInvestment,
+            linkedMarketUpdate: update
         )
         posts.insert(post, at: 0)
         
@@ -1640,6 +1719,143 @@ class GameState: ObservableObject {
         // Save state and update UI
         saveState()
         objectWillChange.send()
+    }
+    
+    private func handleCryptoUpdate() {
+        // Generate random price change (-20% to +20%)
+        let priceChange = Double.random(in: -0.20...0.20)
+        
+        // Select a random crypto asset
+        let cryptoSymbols = ["BTC", "ETH", "SOL", "DOGE"]
+        let symbol = cryptoSymbols.randomElement() ?? "BTC"
+        
+        // Create market update
+        let update = MarketUpdate(
+            title: "Crypto Market Update",
+            description: "Market volatility triggers significant price movement",
+            updates: [
+                MarketUpdate.Update(
+                    symbol: symbol,
+                    newPrice: getCurrentPrice(for: symbol) * (1 + priceChange),
+                    newMultiple: nil,
+                    message: getPriceChangeMessage(symbol: symbol, change: priceChange),
+                    type: .crypto
+                )
+            ]
+        )
+        
+        applyMarketUpdate(update)
+    }
+    
+    private func handleEquityUpdate() {
+        // Generate random price change (-10% to +10%)
+        let priceChange = Double.random(in: -0.10...0.10)
+        
+        // Select a random stock
+        let stockSymbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA"]
+        let symbol = stockSymbols.randomElement() ?? "AAPL"
+        
+        // Create market update
+        let update = MarketUpdate(
+            title: "Stock Market Update",
+            description: "Market conditions affect stock prices",
+            updates: [
+                MarketUpdate.Update(
+                    symbol: symbol,
+                    newPrice: getCurrentPrice(for: symbol) * (1 + priceChange),
+                    newMultiple: nil,
+                    message: getPriceChangeMessage(symbol: symbol, change: priceChange),
+                    type: .stock
+                )
+            ]
+        )
+        
+        applyMarketUpdate(update)
+    }
+    
+    private func handleCryptoDM() {
+        // Select a random crypto asset
+        let cryptoSymbols = ["BTC", "ETH", "SOL", "DOGE"]
+        let symbol = cryptoSymbols.randomElement() ?? "BTC"
+        
+        // Create a message about the crypto opportunity
+        let cryptoAnalyst = Bool.random() ? "Alex Chen" : "Sarah Kim"
+        let message = Message(
+            senderId: "crypto_analyst",
+            senderName: cryptoAnalyst,
+            senderRole: "Crypto Market Analyst",
+            timestamp: Date(),
+            content: generateCryptoAdvice(for: symbol),
+            opportunity: Opportunity(
+                title: getAssetName(for: symbol),
+                description: "Consider adding \(symbol) to your portfolio at the current price.",
+                type: .investment,
+                requiredInvestment: getCurrentPrice(for: symbol),
+                monthlyRevenue: nil,
+                monthlyExpenses: nil,
+                revenueShare: nil
+            ),
+            isRead: false
+        )
+        
+        messages.append(message)
+    }
+    
+    private func getCurrentPrice(for symbol: String) -> Double {
+        // Return current price if asset exists in portfolio
+        if let asset = cryptoPortfolio.assets.first(where: { $0.symbol == symbol }) {
+            return asset.currentPrice
+        }
+        if let asset = equityPortfolio.assets.first(where: { $0.symbol == symbol }) {
+            return asset.currentPrice
+        }
+        
+        // Return default prices for known assets
+        switch symbol {
+        case "BTC": return 52000.0
+        case "ETH": return 3200.0
+        case "SOL": return 120.0
+        case "DOGE": return 0.15
+        case "AAPL": return 190.0
+        case "MSFT": return 420.0
+        case "GOOGL": return 150.0
+        case "AMZN": return 170.0
+        case "NVDA": return 850.0
+        default: return 100.0
+        }
+    }
+    
+    private func getPriceChangeMessage(symbol: String, change: Double) -> String {
+        let percentChange = change * 100
+        let direction = change > 0 ? "up" : "down"
+        let emoji = change > 0 ? "📈" : "📉"
+        
+        return "\(getAssetName(for: symbol)) (\(symbol)) is \(direction) \(String(format: "%.1f", abs(percentChange)))% \(emoji)"
+    }
+    
+    private func generateCryptoAdvice(for symbol: String) -> String {
+        let messages = [
+            "Technical analysis suggests a potential breakout for \(symbol). Worth considering an entry point here.",
+            "Market sentiment for \(symbol) is turning positive. This could be a good opportunity.",
+            "Institutional interest in \(symbol) is growing. Might be worth adding to your portfolio.",
+            "Recent developments in \(symbol) look promising. Consider taking a position."
+        ]
+        return messages.randomElement() ?? messages[0]
+    }
+    
+    private func getAssetName(for symbol: String) -> String {
+        switch symbol {
+        case "BTC": return "Bitcoin"
+        case "ETH": return "Ethereum"
+        case "SOL": return "Solana"
+        case "DOGE": return "Dogecoin"
+        case "AAPL": return "Apple Inc"
+        case "MSFT": return "Microsoft Corporation"
+        case "GOOGL": return "Alphabet Inc"
+        case "AMZN": return "Amazon.com Inc"
+        case "NVDA": return "NVIDIA Corporation"
+        default: return symbol
+        }
     }
 }
 
