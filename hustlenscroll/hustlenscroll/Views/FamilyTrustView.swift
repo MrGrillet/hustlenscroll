@@ -2,7 +2,7 @@ import SwiftUI
 
 struct FamilyTrustView: View {
     @EnvironmentObject var gameState: GameState
-    @Environment(\.dismiss) private var dismiss
+    @State private var showingTransferSheet = false
     
     private let currencyFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -18,46 +18,55 @@ struct FamilyTrustView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Trust Overview
-                VStack(spacing: 15) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Trust Balance")
-                                .font(.headline)
-                                .foregroundColor(.gray)
-                            Text(formatCurrency(gameState.familyTrustBalance))
-                                .font(.title)
-                                .bold()
-                        }
-                        Spacer()
-                        Image(systemName: "building.columns.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(.purple)
+                // Trust Info
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Family Trust")
+                        .font(.title2)
+                        .bold()
+                    
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Your family trust is a high-yield savings account that earns 6% annual interest. This account can be used for large purchases and investments.")
+                            .font(.body)
+                        
+                        Text("Benefits:")
+                            .font(.subheadline)
+                            .bold()
+                            .padding(.top, 5)
+                        
+                        Text("• 6% Annual Interest Rate\n• No withdrawal limits\n• Perfect for long-term savings")
+                            .font(.subheadline)
                     }
-                    
-                    Divider()
-                    
-                    // Trust Details
-                    InfoRow(title: "Annual Return", value: "6.0%")
-                    InfoRow(title: "Trust Type", value: "Family Wealth Management")
-                    InfoRow(title: "Status", value: "Active")
+                    .foregroundColor(.gray)
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.purple.opacity(0.1))
+                    .cornerRadius(10)
                 }
-                .padding()
-                .background(Color.purple.opacity(0.1))
-                .cornerRadius(10)
                 .padding(.horizontal)
                 
-                // Trust Information
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Trust Features")
+                // Current Status
+                VStack(alignment: .leading, spacing: 15) {
+                    Text("Current Status")
                         .font(.headline)
-                        .padding(.horizontal)
+                        .foregroundColor(.gray)
                     
-                    VStack(alignment: .leading, spacing: 15) {
-                        FeatureRow(icon: "chart.line.uptrend.xyaxis", title: "Wealth Growth", description: "Compound interest with monthly returns")
-                        FeatureRow(icon: "shield.fill", title: "Asset Protection", description: "Protected from personal liabilities")
-                        FeatureRow(icon: "leaf.fill", title: "Tax Efficiency", description: "Optimized for tax advantages")
-                        FeatureRow(icon: "person.3.fill", title: "Family Benefits", description: "Structured for generational wealth transfer")
+                    VStack(alignment: .leading, spacing: 10) {
+                        InfoRow(title: "Current Balance", value: formatCurrency(gameState.familyTrustBalance))
+                        InfoRow(title: "Monthly Interest", value: formatCurrency(gameState.familyTrustBalance * 0.005))
+                        InfoRow(title: "Annual Return", value: "6.0%")
+                        
+                        Button(action: {
+                            showingTransferSheet = true
+                        }) {
+                            Text("Transfer Money")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.purple)
+                                .cornerRadius(10)
+                        }
+                        .padding(.top, 10)
                     }
                     .padding()
                     .background(Color.gray.opacity(0.1))
@@ -65,40 +74,42 @@ struct FamilyTrustView: View {
                 }
                 .padding(.horizontal)
                 
-                // Recent Transactions
-                VStack(alignment: .leading, spacing: 10) {
+                // Transaction History
+                VStack(alignment: .leading, spacing: 15) {
                     Text("Recent Transactions")
                         .font(.headline)
-                        .padding(.horizontal)
+                        .foregroundColor(.gray)
                     
-                    if gameState.transactions.isEmpty {
-                        Text("No recent transactions")
-                            .foregroundColor(.gray)
-                            .padding()
-                    } else {
-                        ForEach(gameState.transactions.prefix(5)) { transaction in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(transaction.description)
-                                        .font(.subheadline)
-                                    Text(transaction.date, style: .date)
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                }
-                                Spacer()
-                                Text(formatCurrency(transaction.amount))
-                                    .foregroundColor(transaction.isIncome ? .green : .red)
+                    ForEach(gameState.transactions.filter { 
+                        $0.description.contains("Trust")
+                    }.prefix(10)) { transaction in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(transaction.description)
+                                    .font(.subheadline)
+                                Text(transaction.date, style: .date)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
                             }
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(8)
+                            
+                            Spacer()
+                            
+                            Text(formatCurrency(transaction.amount))
+                                .foregroundColor(transaction.isIncome ? .green : .red)
                         }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(10)
                     }
                 }
                 .padding(.horizontal)
             }
+            .padding(.vertical)
         }
         .navigationTitle("Family Trust")
+        .sheet(isPresented: $showingTransferSheet) {
+            TransferView(fromAccountType: .familyTrust)
+        }
     }
 }
 

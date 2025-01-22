@@ -632,7 +632,13 @@ struct SellButton: View {
     private func sellSelectedBusinesses(multiple: Double) {
         for business in selectedBusinesses {
             let saleValue = business.currentExitValue * (business.revenueShare / 100.0) * (multiple / business.currentExitMultiple)
-            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Add proceeds to checking account or family trust based on role
+            if gameState.currentPlayer.role == "Owner / Angel Investor" {
+                gameState.familyTrustBalance += saleValue
+            } else {
+                gameState.currentPlayer.bankBalance += saleValue
+            }
             
             // Record transaction
             gameState.transactions.append(Transaction(
@@ -868,7 +874,13 @@ struct TrendingTopicView: View {
         if let index = gameState.cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
             let asset = gameState.cryptoPortfolio.assets[index]
             let saleValue = asset.quantity * asset.currentPrice
-            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Add proceeds to Family Trust if available, otherwise to checking account
+            if gameState.familyTrustBalance > 0 {
+                gameState.familyTrustBalance += saleValue
+            } else {
+                gameState.currentPlayer.bankBalance += saleValue
+            }
             
             // Record transaction
             gameState.transactions.append(Transaction(
@@ -888,7 +900,13 @@ struct TrendingTopicView: View {
         if let index = gameState.equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
             let asset = gameState.equityPortfolio.assets[index]
             let saleValue = asset.quantity * asset.currentPrice
-            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Add proceeds to Family Trust if available, otherwise to checking account
+            if gameState.familyTrustBalance > 0 {
+                gameState.familyTrustBalance += saleValue
+            } else {
+                gameState.currentPlayer.bankBalance += saleValue
+            }
             
             // Record transaction
             gameState.transactions.append(Transaction(
@@ -1042,7 +1060,13 @@ struct TradingView: View {
         if let index = gameState.cryptoPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
             var asset = gameState.cryptoPortfolio.assets[index]
             let saleValue = quantity * asset.currentPrice
-            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Add proceeds to Family Trust if available, otherwise to checking account
+            if gameState.familyTrustBalance > 0 {
+                gameState.familyTrustBalance += saleValue
+            } else {
+                gameState.currentPlayer.bankBalance += saleValue
+            }
             
             // Record transaction
             gameState.transactions.append(Transaction(
@@ -1069,7 +1093,13 @@ struct TradingView: View {
         if let index = gameState.equityPortfolio.assets.firstIndex(where: { $0.symbol == symbol }) {
             var asset = gameState.equityPortfolio.assets[index]
             let saleValue = quantity * asset.currentPrice
-            gameState.currentPlayer.bankBalance += saleValue
+            
+            // Add proceeds to Family Trust if available, otherwise to checking account
+            if gameState.familyTrustBalance > 0 {
+                gameState.familyTrustBalance += saleValue
+            } else {
+                gameState.currentPlayer.bankBalance += saleValue
+            }
             
             // Record transaction
             gameState.transactions.append(Transaction(

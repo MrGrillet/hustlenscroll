@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountDetailView: View {
     @EnvironmentObject var gameState: GameState
     let accountType: AccountType
+    @State private var showingTransferSheet = false
     
     private let currencyFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -42,6 +43,20 @@ struct AccountDetailView: View {
                         InfoRow(title: "Monthly Expenses", value: formatCurrency(gameState.monthlyExpenses))
                         InfoRow(title: "Net Cash Flow", value: formatCurrency(gameState.monthlyCashflow))
                     }
+                    
+                    // Add Transfer Button
+                    Button(action: {
+                        showingTransferSheet = true
+                    }) {
+                        Text("Transfer Money")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(10)
+                    }
+                    .padding(.top, 10)
                 }
                 .padding()
                 .background(Color.gray.opacity(0.1))
@@ -82,6 +97,9 @@ struct AccountDetailView: View {
             }
         }
         .navigationTitle(accountType.title)
+        .sheet(isPresented: $showingTransferSheet) {
+            TransferView(fromAccountType: accountType)
+        }
     }
     
     private var accountBalance: Double {

@@ -3,7 +3,6 @@ import SwiftUI
 struct SavingsAccountView: View {
     @EnvironmentObject var gameState: GameState
     @State private var showingTransferSheet = false
-    @State private var transferAmount = ""
     
     private let currencyFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
@@ -108,63 +107,7 @@ struct SavingsAccountView: View {
         }
         .navigationTitle("Savings Account")
         .sheet(isPresented: $showingTransferSheet) {
-            TransferView(
-                fromBalance: gameState.currentPlayer.savingsBalance,
-                onTransfer: { amount in
-                    gameState.transferFromSavings(amount: amount)
-                    showingTransferSheet = false
-                }
-            )
-        }
-    }
-}
-
-struct TransferView: View {
-    @Environment(\.dismiss) var dismiss
-    let fromBalance: Double
-    let onTransfer: (Double) -> Void
-    @State private var amount = ""
-    
-    private let currencyFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.maximumFractionDigits = 2
-        return formatter
-    }()
-    
-    private func formatCurrency(_ value: Double) -> String {
-        return currencyFormatter.string(from: NSNumber(value: value)) ?? "$0.00"
-    }
-    
-    var isValidAmount: Bool {
-        guard let transferAmount = Double(amount) else { return false }
-        return transferAmount > 0 && transferAmount <= fromBalance
-    }
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Transfer Amount")) {
-                    TextField("Amount", text: $amount)
-                        .keyboardType(.decimalPad)
-                    
-                    Text("Available Balance: " + formatCurrency(fromBalance))
-                        .foregroundColor(.gray)
-                }
-                
-                Section {
-                    Button("Transfer") {
-                        if let amount = Double(amount), isValidAmount {
-                            onTransfer(amount)
-                        }
-                    }
-                    .disabled(!isValidAmount)
-                }
-            }
-            .navigationTitle("Transfer from Savings")
-            .navigationBarItems(trailing: Button("Cancel") {
-                dismiss()
-            })
+            TransferView(fromAccountType: .savings)
         }
     }
 } 

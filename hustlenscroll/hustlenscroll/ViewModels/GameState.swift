@@ -942,14 +942,10 @@ class GameState: ObservableObject {
             checkStartupExitOpportunities()
         }
         
-        // Add new filler posts after market updates (10-15 posts)
+        // Clear existing posts and add new ones (10-15 posts)
+        posts = []
         let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 10...15))
-        posts.insert(contentsOf: newPosts, at: 0)
-        
-        // Limit total posts to prevent memory issues
-        if posts.count > 100 {
-            posts = Array(posts.prefix(100))
-        }
+        posts = newPosts
         
         saveState()
         objectWillChange.send()
@@ -1381,8 +1377,12 @@ class GameState: ObservableObject {
         // Calculate sale proceeds
         let saleProceeds = business.currentExitValue * (business.revenueShare / 100.0)
         
-        // Add proceeds to bank balance
-        currentPlayer.bankBalance += saleProceeds
+        // Add proceeds to Family Trust if player is Angel Investor, otherwise to checking account
+        if currentPlayer.role == "Owner / Angel Investor" {
+            familyTrustBalance += saleProceeds
+        } else {
+            currentPlayer.bankBalance += saleProceeds
+        }
         
         // Remove business from active businesses
         activeBusinesses.removeAll { $0.id == business.id }
@@ -1407,7 +1407,7 @@ class GameState: ObservableObject {
             Sale Price: $\(Int(saleProceeds))
             Exit Multiple: \(String(format: "%.1fx", business.currentExitMultiple)) annual cash flow
             
-            The funds have been deposited into your account.
+            The funds have been deposited into your \(currentPlayer.role == "Owner / Angel Investor" ? "Family Trust" : "Checking Account").
             """,
             isRead: false
         )
