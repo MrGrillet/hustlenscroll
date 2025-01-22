@@ -4,12 +4,24 @@ struct DMListView: View {
     @EnvironmentObject var gameState: GameState
     @State private var selectedThread: MessageThread?
     @State private var showArchived = false
-    @State private var listUpdateTrigger = false  // Add this to force list updates
+    @State private var listUpdateTrigger = false
     
     // Group messages by sender
     var messageThreads: [MessageThread] {
         // When showArchived is true, show all messages. When false, only show active messages
         let filteredMessages = showArchived ? gameState.messages : gameState.activeMessages
+        
+        print("Total messages in gameState: \(gameState.messages.count)")
+        print("Active messages: \(gameState.activeMessages.count)")
+        print("Filtered messages: \(filteredMessages.count)")
+        print("Unread count: \(gameState.unreadMessageCount)")
+        
+        // Debug print unread messages
+        let unreadMessages = gameState.messages.filter { !$0.isRead }
+        print("Unread messages:")
+        for msg in unreadMessages {
+            print("- \(msg.senderName): \(msg.content.prefix(30))...")
+        }
         
         // First group messages by sender
         let threads = Dictionary(grouping: filteredMessages) { $0.senderId }
@@ -21,15 +33,17 @@ struct DMListView: View {
                 let sortedMessages = messages.sorted { $0.timestamp < $1.timestamp }
                 
                 return MessageThread(
+                    gameState: gameState,
                     senderId: senderId,
                     senderName: latestMessage.senderName,
                     senderRole: latestMessage.senderRole,
                     messageIds: sortedMessages.map { $0.id },
-                    hasUnread: messages.contains { !$0.isRead },
                     lastMessageTimestamp: latestMessage.timestamp,
                     isArchived: latestMessage.isArchived
                 )
             }
+        
+        print("Number of threads: \(threads.count)")
         
         // Sort threads by timestamp, newest first
         return threads.sorted { $0.lastMessageTimestamp > $1.lastMessageTimestamp }
@@ -39,7 +53,14 @@ struct DMListView: View {
         NavigationStack {
             List {
                 ForEach(messageThreads, id: \.id) { thread in
-                    NavigationLink(value: thread) {
+                    NavigationLink {
+                        MessageThreadView(thread: thread)
+                            .onAppear {
+                                print("🟢 MessageThreadView appeared for: \(thread.senderName)")
+                                gameState.markThreadAsRead(senderId: thread.senderId)
+                                listUpdateTrigger.toggle()
+                            }
+                    } label: {
                         MessageThreadRow(gameState: gameState, thread: thread)
                     }
                     .swipeActions(edge: .trailing) {
@@ -74,9 +95,11 @@ struct DMListView: View {
                 }
             }
             .navigationTitle("Messages")
-            .navigationDestination(for: MessageThread.self) { thread in
-                MessageThreadView(thread: thread)
-            }
+        }
+        .onAppear {
+            print("📋 DMListView appeared")
+            gameState.objectWillChange.send()
+            listUpdateTrigger.toggle()
         }
     }
 }
@@ -86,13 +109,11 @@ struct MessageThreadRow: View {
     let thread: MessageThread
     
     var lastMessage: Message? {
-        gameState.messages.first(where: { $0.id == thread.messageIds.first })
-    }
-    
-    var hasUnreadMessages: Bool {
-        thread.messageIds.contains { id in
-            gameState.messages.first(where: { $0.id == id })?.isRead == false
-        }
+        // Get the most recent message instead of the first one
+        gameState.messages
+            .filter { thread.messageIds.contains($0.id) }
+            .sorted { $0.timestamp > $1.timestamp }
+            .first
     }
     
     var formattedTimestamp: String {
@@ -115,7 +136,6 @@ struct MessageThreadRow: View {
                     Text(formattedTimestamp)
                         .font(.caption)
                         .foregroundColor(.gray)
-                        .hidden()
                 }
                 Text(thread.senderRole)
                     .font(.subheadline)
@@ -128,7 +148,7 @@ struct MessageThreadRow: View {
                 }
             }
             
-            if hasUnreadMessages {
+            if thread.isUnread {
                 Circle()
                     .fill(Color.blue)
                     .frame(width: 10, height: 10)
@@ -144,27 +164,35 @@ struct MessageThread: Identifiable, Hashable {
     let senderName: String
     let senderRole: String
     let messageIds: [UUID]
-    let hasUnread: Bool
     let lastMessageTimestamp: Date
     let isArchived: Bool
+    private let gameState: GameState
     
-    // Implement hash(into:) for Hashable conformance
+    var isUnread: Bool {
+        // Get all messages for this thread
+        let threadMessages = gameState.messages
+            .filter { messageIds.contains($0.id) }
+            .sorted { $0.timestamp > $1.timestamp }
+        
+        // Check if the most recent message is unread
+        return threadMessages.first?.isRead == false
+    }
+    
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
     
-    // Implement == for Hashable conformance
     static func == (lhs: MessageThread, rhs: MessageThread) -> Bool {
         lhs.id == rhs.id
     }
     
-    init(senderId: String, senderName: String, senderRole: String, messageIds: [UUID], hasUnread: Bool, lastMessageTimestamp: Date = Date(), isArchived: Bool = false) {
+    init(gameState: GameState, senderId: String, senderName: String, senderRole: String, messageIds: [UUID], lastMessageTimestamp: Date = Date(), isArchived: Bool = false) {
+        self.gameState = gameState
         self.id = senderId
         self.senderId = senderId
         self.senderName = senderName
         self.senderRole = senderRole
         self.messageIds = messageIds
-        self.hasUnread = hasUnread
         self.lastMessageTimestamp = lastMessageTimestamp
         self.isArchived = isArchived
     }

@@ -96,22 +96,103 @@ struct UnexpectedExpense: GameEventProtocol, Identifiable, Codable {
         case tech
     }
     
+    struct ExpenseSender: Codable {
+        let name: String
+        let role: String
+        let id: String
+    }
+    
+    static let expenseSenders = [
+        ExpenseSender(name: "Mom", role: "Family", id: "mom"),
+        ExpenseSender(name: "Steven Johnson", role: "Accountant", id: "accountant"),
+        ExpenseSender(name: "Chloe S", role: "Community Manager", id: "workspace")
+    ]
+    
     static let predefinedExpenses: [UnexpectedExpense] = [
+        // Mom's expenses - family and personal emergencies
         UnexpectedExpense(
             id: UUID(),
-            title: "Laptop Stolen",
-            description: "Your laptop was stolen from a coffee shop. Need immediate replacement for work.",
+            title: "Your sister just called",
+            description: "Your sister's car broke down. She needs help with repairs can you go get her?",
+            amount: 800,
+            isUrgent: true,
+            category: .personal
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "The roof guys just left",
+            description: "The roof at home is leaking. Please help they are saying it's like...",
             amount: 2000,
             isUrgent: true,
+            category: .personal
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Medical Bills",
+            description: "Dad needs help with unexpected medical expenses.",
+            amount: 800,
+            isUrgent: true,
+            category: .personal
+        ),
+        
+        // Shope Johnson's expenses - tax and financial obligations
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Tax Adjustment",
+            description: "Additional tax payment required due to miscalculation, sorry mate.",
+            amount: 1200,
+            isUrgent: true,
+            category: .business
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Rate Increase",
+            description: "This is a notice to say we are increasing our rates at Jonson & Associates. Call if any questions.",
+            amount: 200,
+            isUrgent: false,
+            category: .business
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Taxes Due",
+            description: "Taxes are still due for the year, you need to pay them them ASAP.",
+            amount: 1300,
+            isUrgent: false,
+            category: .business
+        ),
+        
+        // Chloe's expenses - workspace and equipment
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Workspace Upgrade",
+            description: "Mandatory equipment upgrade for your dedicated desk.",
+            amount: 400,
+            isUrgent: false,
             category: .tech
         ),
         UnexpectedExpense(
             id: UUID(),
-            title: "Medical Emergency",
-            description: "Broke your leg during a weekend hike. Medical bills not fully covered by insurance.",
-            amount: 4000,
+            title: "Community Event",
+            description: "Contribution needed for workspace community event.",
+            amount: 150,
+            isUrgent: false,
+            category: .business
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Security Deposit",
+            description: "Additional security deposit required for after-hours access.",
+            amount: 300,
             isUrgent: true,
-            category: .personal
+            category: .business
+        ),
+        UnexpectedExpense(
+            id: UUID(),
+            title: "Missing laptop",
+            description: "I just heard back from our insurance company, they are not going to cover the cost of the laptop. Sorry",
+            amount: 1300,
+            isUrgent: true,
+            category: .business
         )
     ]
 }

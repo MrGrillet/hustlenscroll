@@ -3,9 +3,6 @@ import SwiftUI
 struct MessageBubble: View {
     @Binding var message: Message
     @EnvironmentObject var gameState: GameState
-    @State private var showingInvestmentPurchase = false
-    @State private var selectedAsset: Asset?
-    @State private var isProcessing = false
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -28,56 +25,69 @@ struct MessageBubble: View {
                     MessageOpportunityView(opportunity: opportunity)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    // Accept/Reject buttons
+                    // Only show buttons if the message is unread and pending
                     if message.opportunityStatus == .pending {
-                        HStack(spacing: 16) {
-                            Button(action: {
-                                isProcessing = true
-                                gameState.handleOpportunityResponse(message: message, accepted: true)
-                                isProcessing = false
-                            }) {
-                                HStack {
-                                    if isProcessing {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    } else {
-                                        Image(systemName: "checkmark.circle.fill")
-                                        Text("Accept")
-                                    }
-                                }
-                                .frame(minWidth: 100)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(isProcessing ? Color.gray : Color.green)
-                                .cornerRadius(8)
+                        switch opportunity.type {
+                        case .startup:
+                            Button {
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("ShowBusinessPurchase"),
+                                    object: nil,
+                                    userInfo: ["opportunity": BusinessOpportunity(
+                                        title: opportunity.title,
+                                        description: opportunity.description,
+                                        source: .partner,
+                                        opportunityType: .startup,
+                                        monthlyRevenue: opportunity.monthlyRevenue ?? 0,
+                                        monthlyExpenses: opportunity.monthlyExpenses ?? 0,
+                                        setupCost: opportunity.requiredInvestment ?? 0,
+                                        potentialSaleMultiple: 3.0,
+                                        revenueShare: opportunity.revenueShare ?? 100,
+                                        symbol: opportunity.title
+                                    )]
+                                )
+                            } label: {
+                                Text("Review Bank Accounts")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .cornerRadius(10)
                             }
-                            .disabled(isProcessing)
+                            .padding(.horizontal)
                             
-                            Button(action: {
-                                isProcessing = true
-                                gameState.handleOpportunityResponse(message: message, accepted: false)
-                                isProcessing = false
-                            }) {
-                                HStack {
-                                    if isProcessing {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    } else {
-                                        Image(systemName: "xmark.circle.fill")
-                                        Text("Reject")
-                                    }
-                                }
-                                .frame(minWidth: 100)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                                .background(isProcessing ? Color.gray : Color.red)
-                                .cornerRadius(8)
+                        case .investment:
+                            Button {
+                                print("🔵 MessageBubble: 'Open Trading App' button pressed")
+                                NotificationCenter.default.post(
+                                    name: NSNotification.Name("ShowInvestmentPurchase"),
+                                    object: nil,
+                                    userInfo: ["asset": Asset(
+                                        id: UUID(),
+                                        symbol: opportunity.title,
+                                        name: opportunity.title,
+                                        quantity: 0,
+                                        currentPrice: opportunity.requiredInvestment ?? 0,
+                                        purchasePrice: 0,
+                                        type: .stock
+                                    )]
+                                )
+                                print("🔵 MessageBubble: Posted ShowInvestmentPurchase notification")
+                            } label: {
+                                Text("Open Trading App")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.blue)
+                                    .cornerRadius(10)
                             }
-                            .disabled(isProcessing)
+                            .padding(.horizontal)
+                            
+                        default:
+                            EmptyView()
                         }
-                        .padding(.top, 12)
                     } else if let status = message.opportunityStatus {
                         // Show status text
                         Text(status == .accepted ? "Accepted ✓" : "Rejected ×")
@@ -96,17 +106,6 @@ struct MessageBubble: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowInvestmentPurchase"))) { notification in
-            if let asset = notification.userInfo?["asset"] as? Asset {
-                selectedAsset = asset
-                showingInvestmentPurchase = true
-            }
-        }
-        .sheet(isPresented: $showingInvestmentPurchase) {
-            if let asset = selectedAsset {
-                InvestmentPurchaseView(asset: asset)
-            }
-        }
     }
     
     private func formatTimestamp(_ date: Date) -> String {

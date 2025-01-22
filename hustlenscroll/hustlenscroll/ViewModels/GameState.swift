@@ -140,6 +140,9 @@ class GameState: ObservableObject {
             self.userPosts = decoded.userPosts
             self.profileImage = decoded.profileImage
             
+            // Clean up any duplicate messages
+            removeDuplicateMessages()
+            
             // Only add initial messages if we don't have any
             if messages.isEmpty {
                 self.messages = initialMessages
@@ -197,6 +200,15 @@ class GameState: ObservableObject {
         
         // Force a save to ensure everything is persisted
         saveState()
+    }
+    
+    private func removeDuplicateMessages() {
+        var seen = Set<String>()
+        messages = messages.filter { message in
+            let key = "\(message.senderId)|\(message.timestamp)|\(message.content)"
+            return seen.insert(key).inserted
+        }
+        objectWillChange.send()
     }
     
     func saveState() {
@@ -659,11 +671,7 @@ class GameState: ObservableObject {
     }
     
     func acceptOpportunity(_ opportunity: BusinessOpportunity) {
-        // Check if player has enough money
-        guard currentPlayer.bankBalance >= opportunity.setupCost else { return }
-        
         // Process the opportunity acceptance
-        currentPlayer.bankBalance -= opportunity.setupCost
         activeBusinesses.append(opportunity)
         currentPlayer.activeBusinesses.append(opportunity.id.uuidString)
         
@@ -677,6 +685,7 @@ class GameState: ObservableObject {
         transactions.append(transaction)
         
         saveState()
+        objectWillChange.send()
     }
     
     private func convertOpportunityType(_ type: Opportunity.OpportunityType) -> BusinessOpportunity.OpportunityType {
@@ -745,8 +754,12 @@ class GameState: ObservableObject {
                             symbol: self.getSymbolForTitle(opportunity.title)
                         )
                         
-                        // Process the opportunity acceptance
-                        self.acceptOpportunity(businessOpp)
+                        // Show business purchase view
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("ShowBusinessPurchase"),
+                            object: nil,
+                            userInfo: ["opportunity": businessOpp]
+                        )
                     }
                 }
                 
@@ -1032,7 +1045,16 @@ class GameState: ObservableObject {
             opportunity: nil,
             isRead: false
         )
-        messages.append(paydayMessage)
+        
+        // Only add if not a duplicate
+        if !messages.contains(where: { 
+            $0.senderId == paydayMessage.senderId && 
+            $0.timestamp == paydayMessage.timestamp &&
+            $0.content == paydayMessage.content 
+        }) {
+            messages.append(paydayMessage)
+            objectWillChange.send()
+        }
         
         // Record transactions for the next month
         recordMonthlyTransactions(for: nextMonth)
@@ -1042,17 +1064,29 @@ class GameState: ObservableObject {
         // Get a random predefined expense
         let expense = UnexpectedExpense.predefinedExpenses.randomElement()!
         
+        // Get the appropriate sender based on the expense category
+        let sender = getSenderForExpense(expense)
+        
         // Use current date for the message
         let expenseMessage = Message(
-            senderId: "EXPENSE",
-            senderName: "Life Happens",
-            senderRole: "Expense Alert",
+            senderId: sender.id,
+            senderName: sender.name,
+            senderRole: sender.role,
             timestamp: Date(),
             content: "\(expense.title): \(expense.description)\nAmount: $\(Int(expense.amount))",
             opportunity: nil,
             isRead: false
         )
-        messages.append(expenseMessage)
+        
+        // Only add if not a duplicate
+        if !messages.contains(where: { 
+            $0.senderId == expenseMessage.senderId && 
+            $0.timestamp == expenseMessage.timestamp &&
+            $0.content == expenseMessage.content 
+        }) {
+            messages.append(expenseMessage)
+            objectWillChange.send()
+        }
         
         // Deduct from bank balance
         currentPlayer.bankBalance -= expense.amount
@@ -1066,14 +1100,22 @@ class GameState: ObservableObject {
         ))
     }
     
-    // Update the unreadMessageCount to only count unread active messages
+    private func getSenderForExpense(_ expense: UnexpectedExpense) -> UnexpectedExpense.ExpenseSender {
+        switch expense.category {
+        case .personal:
+            return UnexpectedExpense.expenseSenders[0] // Mom
+        case .business:
+            return UnexpectedExpense.expenseSenders[1] // Shope Johnson
+        case .tech, .crypto:
+            return UnexpectedExpense.expenseSenders[2] // Chloe S
+        }
+    }
+    
+    // Update the unreadMessageCount to count actual unread messages
     var unreadMessageCount: Int {
-        let twentyFourHoursAgo = Calendar.current.date(byAdding: .hour, value: -24, to: Date()) ?? Date()
-        return messages.filter { message in
-            !message.isRead && 
-            !message.isArchived && 
-            message.timestamp >= twentyFourHoursAgo
-        }.count
+        let unreadMessages = messages.filter { !$0.isRead && !$0.isArchived }
+        print("📊 Unread message count: \(unreadMessages.count)")
+        return unreadMessages.count
     }
     
     // Add this computed property to filter messages based on archive state
@@ -1462,6 +1504,32 @@ class GameState: ObservableObject {
     func canAffordOpportunity(_ opportunity: BusinessOpportunity) -> Bool {
         let availableFunds = currentPlayer.bankBalance + currentPlayer.savingsBalance
         return availableFunds >= opportunity.setupCost
+    }
+    
+    func markThreadAsRead(senderId: String) {
+        print("⚡️ Marking thread as read for sender: \(senderId)")
+        var updatedMessages = messages
+        var messageCount = 0
+        
+        // Mark all messages in the thread as read
+        for index in updatedMessages.indices {
+            if updatedMessages[index].senderId == senderId {
+                if !updatedMessages[index].isRead {
+                    updatedMessages[index].isRead = true
+                    messageCount += 1
+                }
+            }
+        }
+        
+        // Only update if we actually changed something
+        if messageCount > 0 {
+            print("⚡️ Marked \(messageCount) messages as read")
+            messages = updatedMessages
+            objectWillChange.send()
+            saveState()
+        } else {
+            print("⚡️ No unread messages found in thread")
+        }
     }
 }
 
