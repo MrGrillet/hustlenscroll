@@ -21,7 +21,7 @@ struct PostRowView: View {
                     Image(systemName: "person.circle.fill")
                         .resizable()
                         .frame(width: 40, height: 40)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.black)
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -49,13 +49,14 @@ struct PostRowView: View {
                                 Image(uiImage: uiImage)
                                     .resizable()
                                     .scaledToFill()
-                                    .frame(width: 200, height: 200)
+                                    .frame(width: 220, height: 260)
                                     .clipped()
                                     .cornerRadius(8)
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.leading, 60) // Account for 40px profile image + 8px spacing + 12px horizontal padding
+                    .padding(.trailing, 12)
                 }
             }
             

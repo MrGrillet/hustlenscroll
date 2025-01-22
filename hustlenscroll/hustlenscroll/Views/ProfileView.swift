@@ -57,7 +57,7 @@ struct ProfileView: View {
                             
                             Text(gameState.currentPlayer.biography)
                                 .font(.body)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.primary)
                                 .padding(.horizontal)
                                 .padding(.top, 4)
                             

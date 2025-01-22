@@ -32,6 +32,7 @@ struct HustlenscrollApp: App {
                             Label("Profile", systemImage: "person")
                         }
                 }
+                .tint(.black)
                 .environmentObject(gameState)
             }
         }

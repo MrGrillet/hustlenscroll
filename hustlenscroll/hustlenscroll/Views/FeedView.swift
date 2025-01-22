@@ -70,7 +70,7 @@ struct FeedPostView: View {
                     Image(systemName: "person.circle.fill")
                         .resizable()
                         .frame(width: 40, height: 40)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.black)
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -113,6 +113,7 @@ struct FeedPostView: View {
                                     }
                                 }
                             }
+                            .padding(.leading, 4)
                             .padding(.trailing, 12)
                         }
                         .padding(.vertical, 5)
