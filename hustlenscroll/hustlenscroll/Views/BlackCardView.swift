@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct CreditCardView: View {
+struct BlackCardView: View {
     @EnvironmentObject var gameState: GameState
     @Environment(\.dismiss) private var dismiss
     
@@ -18,15 +18,16 @@ struct CreditCardView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Credit Card Visual
+                // Black Card Visual
                 ZStack {
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(Color.blue.opacity(0.8))
+                    Rectangle()
+                        .fill(Color.black)
                         .frame(height: 200)
+                        .cornerRadius(15)
                     
                     VStack(alignment: .leading, spacing: 20) {
                         HStack {
-                            Text("CREDIT CARD")
+                            Text("BLACK CARD")
                                 .font(.headline)
                                 .foregroundColor(.white)
                             Spacer()
@@ -36,7 +37,7 @@ struct CreditCardView: View {
                         
                         Spacer()
                         
-                        Text("**** **** **** 4321")
+                        Text("**** **** **** 0001")
                             .font(.title3)
                             .foregroundColor(.white)
                         
@@ -56,11 +57,11 @@ struct CreditCardView: View {
                 
                 // Card Details
                 VStack(spacing: 15) {
-                    InfoRow(title: "Current Balance", value: formatCurrency(gameState.creditCardBalance))
-                    InfoRow(title: "Credit Limit", value: formatCurrency(Role.getRole(byTitle: gameState.currentPlayer.role)?.creditCardLimit ?? 5000))
-                    InfoRow(title: "Available Credit", value: formatCurrency((Role.getRole(byTitle: gameState.currentPlayer.role)?.creditCardLimit ?? 5000) - gameState.creditCardBalance))
-                    InfoRow(title: "Interest Rate", value: "10.0% APR")
-                    InfoRow(title: "Payment Due", value: formatCurrency(gameState.creditCardBalance * 0.03))
+                    InfoRow(title: "Current Balance", value: formatCurrency(gameState.blackCardBalance))
+                    InfoRow(title: "Credit Limit", value: formatCurrency(1000000))
+                    InfoRow(title: "Available Credit", value: formatCurrency(1000000 - gameState.blackCardBalance))
+                    InfoRow(title: "Interest Rate", value: "1.0% APR")
+                    InfoRow(title: "Payment Due", value: formatCurrency(gameState.blackCardBalance * 0.03))
                 }
                 .padding()
                 .background(Color.gray.opacity(0.1))
@@ -100,6 +101,6 @@ struct CreditCardView: View {
                 .padding(.horizontal)
             }
         }
-        .navigationTitle("Credit Card")
+        .navigationTitle("Black Card")
     }
 } 

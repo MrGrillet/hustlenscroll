@@ -17,7 +17,6 @@ struct Role: Identifiable, Codable {
 struct RoleExpenses: Codable {
     let rent: Double
     let cellAndInternet: Double
-    let childCare: Double
     let studentLoans: Double
     let creditCard: Double
     let groceries: Double
@@ -26,7 +25,7 @@ struct RoleExpenses: Codable {
     let perChild: Double
     
     var total: Double {
-        rent + cellAndInternet + childCare + studentLoans + creditCard + groceries + carNote + retail
+        rent + cellAndInternet + studentLoans + creditCard + groceries + carNote + retail
     }
 }
 
@@ -41,9 +40,8 @@ extension Role {
             monthlySalary: 2000,
             creditCardLimit: 2000,
             expenses: RoleExpenses(
-                rent: 1200,
+                rent: 750,
                 cellAndInternet: 150,
-                childCare: 400,
                 studentLoans: 500,
                 creditCard: 0,
                 groceries: 400,
@@ -61,9 +59,8 @@ extension Role {
             monthlySalary: 5500,
             creditCardLimit: 3000,
             expenses: RoleExpenses(
-                rent: 1500,
+                rent: 7500,
                 cellAndInternet: 200,
-                childCare: 500,
                 studentLoans: 600,
                 creditCard: 0,
                 groceries: 500,
@@ -83,7 +80,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 1000,
                 cellAndInternet: 120,
-                childCare: 350,
                 studentLoans: 450,
                 creditCard: 0,
                 groceries: 350,
@@ -103,7 +99,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 1400,
                 cellAndInternet: 180,
-                childCare: 450,
                 studentLoans: 550,
                 creditCard: 0,
                 groceries: 450,
@@ -123,7 +118,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 1300,
                 cellAndInternet: 170,
-                childCare: 400,
                 studentLoans: 500,
                 creditCard: 0,
                 groceries: 400,
@@ -144,7 +138,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 2000,
                 cellAndInternet: 250,
-                childCare: 600,
                 studentLoans: 800,
                 creditCard: 0,
                 groceries: 600,
@@ -164,7 +157,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 1800,
                 cellAndInternet: 220,
-                childCare: 550,
                 studentLoans: 700,
                 creditCard: 0,
                 groceries: 550,
@@ -184,7 +176,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 2200,
                 cellAndInternet: 280,
-                childCare: 650,
                 studentLoans: 850,
                 creditCard: 0,
                 groceries: 650,
@@ -204,7 +195,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 2500,
                 cellAndInternet: 300,
-                childCare: 700,
                 studentLoans: 900,
                 creditCard: 0,
                 groceries: 700,
@@ -224,7 +214,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 2300,
                 cellAndInternet: 290,
-                childCare: 675,
                 studentLoans: 875,
                 creditCard: 0,
                 groceries: 675,
@@ -244,7 +233,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 1900,
                 cellAndInternet: 240,
-                childCare: 575,
                 studentLoans: 750,
                 creditCard: 0,
                 groceries: 575,
@@ -265,7 +253,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 3500,
                 cellAndInternet: 400,
-                childCare: 900,
                 studentLoans: 1200,
                 creditCard: 0,
                 groceries: 900,
@@ -285,7 +272,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 4000,
                 cellAndInternet: 500,
-                childCare: 1200,
                 studentLoans: 1500,
                 creditCard: 0,
                 groceries: 1200,
@@ -305,7 +291,6 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 5000,
                 cellAndInternet: 800,
-                childCare: 1500,
                 studentLoans: 2000,
                 creditCard: 0,
                 groceries: 1500,
@@ -325,13 +310,31 @@ extension Role {
             expenses: RoleExpenses(
                 rent: 4500,
                 cellAndInternet: 600,
-                childCare: 1300,
                 studentLoans: 1800,
                 creditCard: 0,
                 groceries: 1300,
                 carNote: 0,
                 retail: 0,
                 perChild: 1800
+            )
+        ),
+        
+        Role(
+            id: "owner_angel_investor",
+            title: "Owner / Angel Investor",
+            tier: 4,
+            description: "An experienced entrepreneur and investor, providing capital and guidance to startups.",
+            monthlySalary: 25000,
+            creditCardLimit: 1000000,
+            expenses: RoleExpenses(
+                rent: 6000,
+                cellAndInternet: 1000,
+                studentLoans: 0,
+                creditCard: 0,
+                groceries: 2000,
+                carNote: 0,
+                retail: 0,
+                perChild: 2500
             )
         )
     ]

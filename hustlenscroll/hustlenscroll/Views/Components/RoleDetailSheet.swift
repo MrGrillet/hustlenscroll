@@ -39,7 +39,6 @@ struct RoleDetailSheet: View {
                         ForEach([
                             ("Housing", role.expenses.rent),
                             ("Cell & Internet", role.expenses.cellAndInternet),
-                            ("Child Care", role.expenses.childCare),
                             ("Student Loans", role.expenses.studentLoans),
                             ("Credit Card", role.expenses.creditCard),
                             ("Car Note", role.expenses.carNote)

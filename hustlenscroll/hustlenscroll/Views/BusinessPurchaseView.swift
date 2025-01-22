@@ -5,6 +5,19 @@ struct BusinessPurchaseView: View {
     @EnvironmentObject var gameState: GameState
     let opportunity: BusinessOpportunity
     
+    private var currentRole: Role? {
+        Role.getRole(byTitle: gameState.currentPlayer.role)
+    }
+    
+    private var isBlackCardEligible: Bool {
+        currentRole?.creditCardLimit == 1000000
+    }
+    
+    private var isPlatinumCardEligible: Bool {
+        let limit = currentRole?.creditCardLimit ?? 0
+        return limit >= 100000
+    }
+    
     private var canAffordWithBank: Bool {
         gameState.currentPlayer.bankBalance >= opportunity.setupCost
     }
@@ -13,12 +26,41 @@ struct BusinessPurchaseView: View {
         gameState.currentPlayer.savingsBalance >= opportunity.setupCost
     }
     
+    private var canAffordWithFamilyTrust: Bool {
+        gameState.familyTrustBalance >= opportunity.setupCost
+    }
+    
+    private var canAffordWithStandardCredit: Bool {
+        (currentRole?.creditCardLimit ?? 5000) - gameState.creditCardBalance >= opportunity.setupCost
+    }
+    
+    private var canAffordWithPlatinumCard: Bool {
+        isPlatinumCardEligible && (100000 - gameState.platinumCardBalance >= opportunity.setupCost)
+    }
+    
+    private var canAffordWithBlackCard: Bool {
+        isBlackCardEligible && (1000000 - gameState.blackCardBalance >= opportunity.setupCost)
+    }
+    
     private var canAffordWithCredit: Bool {
-        (gameState.creditLimit - gameState.creditCardBalance) >= opportunity.setupCost
+        standardCardAvailableCredit >= opportunity.setupCost
     }
     
     private var canAfford: Bool {
-        canAffordWithBank || canAffordWithSavings || canAffordWithCredit
+        canAffordWithBank || canAffordWithSavings || canAffordWithStandardCredit || 
+        canAffordWithPlatinumCard || canAffordWithBlackCard || canAffordWithFamilyTrust
+    }
+    
+    private var standardCardAvailableCredit: Double {
+        (currentRole?.creditCardLimit ?? 5000) - gameState.creditCardBalance
+    }
+    
+    private var platinumCardAvailableCredit: Double {
+        100000 - gameState.platinumCardBalance
+    }
+    
+    private var blackCardAvailableCredit: Double {
+        1000000 - gameState.blackCardBalance
     }
     
     var body: some View {
@@ -34,64 +76,102 @@ struct BusinessPurchaseView: View {
                         Text(opportunity.description)
                             .foregroundColor(.gray)
                         
-                        Divider()
-                        
-                        InfoRow(title: "Monthly Revenue", value: "$\(Int(opportunity.monthlyRevenue))")
-                        InfoRow(title: "Monthly Expenses", value: "$\(Int(opportunity.monthlyExpenses))")
-                        InfoRow(title: "Monthly Profit", value: "$\(Int(opportunity.monthlyCashflow))")
-                        InfoRow(title: "Required Investment", value: "$\(Int(opportunity.setupCost))")
-                        InfoRow(title: "Revenue Share", value: "\(Int(opportunity.revenueShare))%")
+                        VStack(alignment: .leading, spacing: 8) {
+                            InfoRow(title: "Monthly Revenue", value: formatCurrency(opportunity.monthlyRevenue))
+                            InfoRow(title: "Monthly Expenses", value: formatCurrency(opportunity.monthlyExpenses))
+                            InfoRow(title: "Monthly Profit", value: formatCurrency(opportunity.monthlyCashflow))
+                            InfoRow(title: "Setup Cost", value: formatCurrency(opportunity.setupCost))
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(12)
                     }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
                     
-                    // Available Funds
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Available Funds")
-                            .font(.headline)
-                        
-                        InfoRow(title: "Current Account", value: "$\(Int(gameState.currentPlayer.bankBalance))")
-                        InfoRow(title: "Savings Account", value: "$\(Int(gameState.currentPlayer.savingsBalance))")
-                        InfoRow(title: "Available Credit", value: "$\(Int(gameState.creditLimit - gameState.creditCardBalance))")
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                    
-                    // Decision Buttons
-                    VStack(spacing: 15) {
-                        if canAfford {
-                            HStack(spacing: 15) {
-                                Button {
-                                    handleRejection()
-                                } label: {
-                                    Text("Reject")
-                                        .font(.headline)
-                                        .foregroundColor(.red)
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(Color.red.opacity(0.1))
-                                        .cornerRadius(10)
+                    // Payment Options
+                    if canAfford {
+                        VStack(alignment: .leading, spacing: 15) {
+                            Text("Payment Options")
+                                .font(.headline)
+                            
+                            // Black Card (if eligible)
+                            if isBlackCardEligible {
+                                PaymentOptionRow(
+                                    title: "Black Card",
+                                    available: blackCardAvailableCredit,
+                                    color: .black
+                                )
+                                .onTapGesture {
+                                    handlePurchase(using: .blackCard)
                                 }
-                                
-                                Button {
-                                    handlePurchase()
-                                } label: {
-                                    Text("Accept")
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(Color.blue)
-                                        .cornerRadius(10)
-                                }
+                                .opacity(canAffordWithBlackCard ? 1 : 0.5)
+                                .disabled(!canAffordWithBlackCard)
                             }
-                        } else {
-                            Button {
-                                handleRejection()
-                            } label: {
-                                Text("Reject")
+
+                            // Family Trust
+                            PaymentOptionRow(
+                                title: "Family Trust",
+                                available: gameState.familyTrustBalance,
+                                color: .purple
+                            )
+                            .onTapGesture {
+                                handlePurchase(using: .familyTrust)
+                            }
+                            .opacity(canAffordWithFamilyTrust ? 1 : 0.5)
+                            .disabled(!canAffordWithFamilyTrust)
+
+                            // Platinum Card (if eligible)
+                            if isPlatinumCardEligible {
+                                PaymentOptionRow(
+                                    title: "Platinum Card",
+                                    available: platinumCardAvailableCredit,
+                                    color: .gray
+                                )
+                                .onTapGesture {
+                                    handlePurchase(using: .platinumCard)
+                                }
+                                .opacity(canAffordWithPlatinumCard ? 1 : 0.5)
+                                .disabled(!canAffordWithPlatinumCard)
+                            }
+
+                            // Standard Credit Card
+                            PaymentOptionRow(
+                                title: "Credit Card",
+                                available: standardCardAvailableCredit,
+                                color: Color(uiColor: .systemGray5)
+                            )
+                            .onTapGesture {
+                                handlePurchase(using: .credit)
+                            }
+                            .opacity(canAffordWithCredit ? 1 : 0.5)
+                            .disabled(!canAffordWithCredit)
+
+                            // Checking Account
+                            PaymentOptionRow(
+                                title: "Checking Account",
+                                available: gameState.currentPlayer.bankBalance,
+                                color: Color(uiColor: .systemGray5)
+                            )
+                            .onTapGesture {
+                                handlePurchase(using: .bankAccount)
+                            }
+                            .opacity(canAffordWithBank ? 1 : 0.5)
+                            .disabled(!canAffordWithBank)
+
+                            // Savings Account
+                            PaymentOptionRow(
+                                title: "Savings Account",
+                                available: gameState.currentPlayer.savingsBalance,
+                                color: Color(uiColor: .systemGray5)
+                            )
+                            .onTapGesture {
+                                handlePurchase(using: .savings)
+                            }
+                            .opacity(canAffordWithSavings ? 1 : 0.5)
+                            .disabled(!canAffordWithSavings)
+
+                            // Reject Button
+                            Button(action: { dismiss() }) {
+                                Text("Reject Opportunity")
                                     .font(.headline)
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
@@ -99,10 +179,7 @@ struct BusinessPurchaseView: View {
                                     .background(Color.red)
                                     .cornerRadius(10)
                             }
-                            
-                            Text("Insufficient funds available")
-                                .foregroundColor(.red)
-                                .padding(.top)
+                            .padding(.top)
                         }
                     }
                 }
@@ -114,7 +191,16 @@ struct BusinessPurchaseView: View {
         }
     }
     
-    private func handlePurchase() {
+    private enum PaymentMethod {
+        case bankAccount
+        case savings
+        case familyTrust
+        case credit
+        case platinumCard
+        case blackCard
+    }
+    
+    private func handlePurchase(using method: PaymentMethod) {
         print("💼 Handling business purchase:")
         print("  - Business: \(opportunity.title)")
         print("  - Cost: $\(opportunity.setupCost)")
@@ -128,32 +214,28 @@ struct BusinessPurchaseView: View {
             content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages),
             isRead: true
         )
-        print("  - Adding user acceptance message")
         gameState.addMessageToThread(senderId: userMessage.senderId, message: userMessage)
         
-        // Add broker's follow-up message
-        let brokerMessage = Message(
-            senderId: opportunity.source == .partner ? "broker" : "founder",
-            senderName: opportunity.source == .partner ? "Alex Thompson" : "Mike Wilson",
-            senderRole: opportunity.source == .partner ? "Business Broker" : "Founder",
-            timestamp: Date().addingTimeInterval(30),
-            content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerFollowUpMessages),
-            isRead: false
-        )
-        print("  - Adding broker follow-up message")
-        gameState.addMessageToThread(senderId: brokerMessage.senderId, message: brokerMessage)
-        
-        // Process the purchase
-        print("  - Processing payment:")
-        if canAffordWithBank {
+        // Process payment
+        switch method {
+        case .bankAccount:
             print("    Using bank account")
             gameState.currentPlayer.bankBalance -= opportunity.setupCost
-        } else if canAffordWithSavings {
+        case .savings:
             print("    Using savings account")
             gameState.currentPlayer.savingsBalance -= opportunity.setupCost
-        } else if canAffordWithCredit {
+        case .familyTrust:
+            print("    Using family trust")
+            gameState.familyTrustBalance -= opportunity.setupCost
+        case .credit:
             print("    Using credit card")
             gameState.creditCardBalance += opportunity.setupCost
+        case .platinumCard:
+            print("    Using platinum card")
+            gameState.platinumCardBalance += opportunity.setupCost
+        case .blackCard:
+            print("    Using black card")
+            gameState.blackCardBalance += opportunity.setupCost
         }
         
         // Add the business
@@ -162,7 +244,7 @@ struct BusinessPurchaseView: View {
         
         // Add accountant's confirmation
         let accountantMessage = Message(
-            senderId: "accountant",  // Use accountant's own thread
+            senderId: "accountant",
             senderName: "Steven Johnson",
             senderRole: "Accountant",
             timestamp: Date().addingTimeInterval(60),
@@ -179,35 +261,38 @@ struct BusinessPurchaseView: View {
         dismiss()
     }
     
-    private func handleRejection() {
-        print("❌ Handling business rejection:")
-        print("  - Business: \(opportunity.title)")
-        
-        // Add user's rejection message
-        let userMessage = Message(
-            senderId: opportunity.source == .partner ? "broker" : "founder",
-            senderName: gameState.currentPlayer.name,
-            senderRole: gameState.currentPlayer.role,
-            timestamp: Date(),
-            content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
-            isRead: true
-        )
-        print("  - Adding user rejection message")
-        gameState.addMessageToThread(senderId: userMessage.senderId, message: userMessage)
-        
-        // Add broker's response
-        let brokerMessage = Message(
-            senderId: opportunity.source == .partner ? "broker" : "founder",
-            senderName: opportunity.source == .partner ? "Alex Thompson" : "Mike Wilson",
-            senderRole: opportunity.source == .partner ? "Business Broker" : "Founder",
-            timestamp: Date().addingTimeInterval(30),
-            content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
-            isRead: false
-        )
-        print("  - Adding broker response message")
-        gameState.addMessageToThread(senderId: brokerMessage.senderId, message: brokerMessage)
-        
-        print("  - Rejection complete, dismissing view")
-        dismiss()
+    private func formatCurrency(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? "$0.00"
+    }
+}
+
+struct PaymentOptionRow: View {
+    let title: String
+    let available: Double
+    let color: Color
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+            Spacer()
+            Text(formatCurrency(available))
+                .font(.subheadline)
+        }
+        .foregroundColor(color == .black ? .white : .primary)
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(color.opacity(color == .black ? 1 : 0.1))
+        .cornerRadius(10)
+    }
+    
+    private func formatCurrency(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: value)) ?? "$0.00"
     }
 } 

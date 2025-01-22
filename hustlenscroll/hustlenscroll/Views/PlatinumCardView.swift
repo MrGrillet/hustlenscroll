@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct CreditCardView: View {
+struct PlatinumCardView: View {
     @EnvironmentObject var gameState: GameState
     @Environment(\.dismiss) private var dismiss
     
@@ -18,36 +18,36 @@ struct CreditCardView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Credit Card Visual
+                // Platinum Card Visual
                 ZStack {
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(Color.blue.opacity(0.8))
+                    Rectangle()
+                        .fill(LinearGradient(
+                            gradient: Gradient(colors: [Color.gray.opacity(0.8), Color.white.opacity(0.8)]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
                         .frame(height: 200)
+                        .cornerRadius(15)
                     
                     VStack(alignment: .leading, spacing: 20) {
                         HStack {
-                            Text("CREDIT CARD")
+                            Text("PLATINUM CARD")
                                 .font(.headline)
-                                .foregroundColor(.white)
                             Spacer()
                             Image(systemName: "creditcard.fill")
-                                .foregroundColor(.white)
                         }
                         
                         Spacer()
                         
-                        Text("**** **** **** 4321")
+                        Text("**** **** **** 0002")
                             .font(.title3)
-                            .foregroundColor(.white)
                         
                         HStack {
                             Text(gameState.currentPlayer.name.uppercased())
                                 .font(.caption)
-                                .foregroundColor(.white)
                             Spacer()
                             Text("VALID THRU 12/28")
                                 .font(.caption)
-                                .foregroundColor(.white)
                         }
                     }
                     .padding()
@@ -56,11 +56,11 @@ struct CreditCardView: View {
                 
                 // Card Details
                 VStack(spacing: 15) {
-                    InfoRow(title: "Current Balance", value: formatCurrency(gameState.creditCardBalance))
-                    InfoRow(title: "Credit Limit", value: formatCurrency(Role.getRole(byTitle: gameState.currentPlayer.role)?.creditCardLimit ?? 5000))
-                    InfoRow(title: "Available Credit", value: formatCurrency((Role.getRole(byTitle: gameState.currentPlayer.role)?.creditCardLimit ?? 5000) - gameState.creditCardBalance))
-                    InfoRow(title: "Interest Rate", value: "10.0% APR")
-                    InfoRow(title: "Payment Due", value: formatCurrency(gameState.creditCardBalance * 0.03))
+                    InfoRow(title: "Current Balance", value: formatCurrency(gameState.platinumCardBalance))
+                    InfoRow(title: "Credit Limit", value: formatCurrency(100000))
+                    InfoRow(title: "Available Credit", value: formatCurrency(100000 - gameState.platinumCardBalance))
+                    InfoRow(title: "Interest Rate", value: "8.0% APR")
+                    InfoRow(title: "Payment Due", value: formatCurrency(gameState.platinumCardBalance * 0.03))
                 }
                 .padding()
                 .background(Color.gray.opacity(0.1))
@@ -100,6 +100,6 @@ struct CreditCardView: View {
                 .padding(.horizontal)
             }
         }
-        .navigationTitle("Credit Card")
+        .navigationTitle("Platinum Card")
     }
 } 

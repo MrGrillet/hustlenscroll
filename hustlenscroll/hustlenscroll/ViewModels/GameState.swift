@@ -24,6 +24,9 @@ class GameState: ObservableObject {
     @Published var startupRevenue: Double = 0
     @Published var startupExpenses: Double = 0
     @Published var creditCardBalance: Double = 0
+    @Published var blackCardBalance: Double = 0
+    @Published var platinumCardBalance: Double = 0
+    @Published var familyTrustBalance: Double = 0
     @Published var creditLimit: Double = 5000
     @Published var transactions: [Transaction] = []
     @Published var businessTransactions: [Transaction] = []
@@ -219,7 +222,7 @@ class GameState: ObservableObject {
             userPosts: userPosts,
             player: currentPlayer,
             goal: playerGoal,
-            profileImage: profileImage,  // Save profile image
+            profileImage: profileImage,
             transactions: transactions,
             messages: messages,
             hasStartup: hasStartup,
@@ -235,7 +238,10 @@ class GameState: ObservableObject {
             profile: profile,
             lastRecordedMonth: lastRecordedMonth,
             showingExitOpportunity: showingExitOpportunity,
-            currentMarketUpdate: currentMarketUpdate
+            currentMarketUpdate: currentMarketUpdate,
+            blackCardBalance: blackCardBalance,
+            platinumCardBalance: platinumCardBalance,
+            familyTrustBalance: familyTrustBalance
         )
         
         if let encoded = try? JSONEncoder().encode(state) {
@@ -457,7 +463,6 @@ class GameState: ObservableObject {
         let expenseItems: [(String, Double)] = [
             ("Rent", expenses.rent),
             ("Cell & Internet", expenses.cellAndInternet),
-            ("Child Care", expenses.childCare),
             ("Student Loans", expenses.studentLoans),
             ("Credit Card Payment", expenses.creditCard),
             ("Groceries", expenses.groceries),
@@ -1884,7 +1889,7 @@ struct SavedGameState: Codable {
     let userPosts: [Post]
     let player: Player
     let goal: Goal?
-    let profileImage: String?  // Filename of the saved image
+    let profileImage: String?
     let transactions: [Transaction]
     let messages: [Message]
     let hasStartup: Bool
@@ -1901,4 +1906,7 @@ struct SavedGameState: Codable {
     let lastRecordedMonth: Date?
     let showingExitOpportunity: BusinessOpportunity?
     let currentMarketUpdate: MarketUpdate?
+    let blackCardBalance: Double
+    let platinumCardBalance: Double
+    let familyTrustBalance: Double
 } 

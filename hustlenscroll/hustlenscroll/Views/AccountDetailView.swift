@@ -1,165 +1,137 @@
 import SwiftUI
 
-enum AccountType: String {
-    case checking = "Checking Account"
-    case savings = "Savings Account"
-    case creditCard = "Credit Card"
-    case business = "Business Account"
-    case crypto = "Crypto Portfolio"
-    case equities = "Equities Portfolio"
-}
-
 struct AccountDetailView: View {
     @EnvironmentObject var gameState: GameState
     let accountType: AccountType
     
+    private let currencyFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+    
+    private func formatCurrency(_ value: Double) -> String {
+        return currencyFormatter.string(from: NSNumber(value: value)) ?? "$0.00"
+    }
+    
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
-                ForEach(monthlyTransactions, id: \.month) { monthGroup in
-                    MonthlyTransactionCard(monthGroup: monthGroup)
-                }
-            }
-            .padding()
-        }
-        .navigationTitle(accountType.rawValue)
-    }
-    
-    // Group transactions by month and year
-    private var monthlyTransactions: [MonthlyTransactions] {
-        let calendar = Calendar.current
-        let grouped = Dictionary(grouping: gameState.transactions) { transaction in
-            calendar.startOfMonth(from: transaction.date)
-        }
-        
-        return grouped.map { date, transactions in
-            MonthlyTransactions(month: date, transactions: transactions)
-        }.sorted { $0.month > $1.month }
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let startOfCurrentMonth = calendar.startOfMonth(from: date)
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: startOfCurrentMonth)
-    }
-}
-
-// Model for grouped monthly transactions
-struct MonthlyTransactions {
-    let month: Date
-    let transactions: [Transaction]
-    
-    var income: [Transaction] {
-        transactions.filter { $0.isIncome }
-            .sorted { $0.date > $1.date }
-    }
-    
-    var expenses: [Transaction] {
-        transactions.filter { !$0.isIncome }
-            .sorted { $0.date > $1.date }
-    }
-    
-    var totalIncome: Double {
-        income.reduce(0) { $0 + abs($1.amount) }
-    }
-    
-    var totalExpenses: Double {
-        expenses.reduce(0) { $0 + abs($1.amount) }
-    }
-    
-    var netAmount: Double {
-        totalIncome - totalExpenses
-    }
-}
-
-// Card view for monthly transactions
-struct MonthlyTransactionCard: View {
-    let monthGroup: MonthlyTransactions
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Month header with net amount
-            HStack {
-                Text(monthGroup.month, format: .dateTime.month(.wide).year())
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-                Text(monthGroup.netAmount, format: .currency(code: "USD"))
-                    .font(.headline)
-                    .foregroundColor(monthGroup.netAmount >= 0 ? .green : .red)
-            }
-            
-            Divider()
-            
-            // Income Section
-            if !monthGroup.income.isEmpty {
-                Text("Income")
-                    .font(.headline)
-                    .foregroundColor(.gray)
-                    .padding(.top, 4)
-                
-                ForEach(monthGroup.income) { transaction in
+            VStack(spacing: 20) {
+                // Account Overview
+                VStack(spacing: 15) {
                     HStack {
-                        Text(transaction.description)
+                        VStack(alignment: .leading) {
+                            Text("Current Balance")
+                                .font(.headline)
+                                .foregroundColor(.gray)
+                            Text(formatCurrency(accountBalance))
+                                .font(.title)
+                                .bold()
+                        }
                         Spacer()
-                        Text(abs(transaction.amount), format: .currency(code: "USD"))
-                            .foregroundColor(.green)
+                        Image(systemName: accountIcon)
+                            .font(.system(size: 40))
+                            .foregroundColor(.blue)
                     }
-                    .padding(.vertical, 2)
-                }
-                
-                HStack {
-                    Text("Total Income")
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Text(monthGroup.totalIncome, format: .currency(code: "USD"))
-                        .fontWeight(.semibold)
-                        .foregroundColor(.green)
-                }
-                .padding(.top, 4)
-            }
-            
-            // Expenses Section
-            if !monthGroup.expenses.isEmpty {
-                Text("Expenses")
-                    .font(.headline)
-                    .foregroundColor(.gray)
-                    .padding(.top, 8)
-                
-                ForEach(monthGroup.expenses) { transaction in
-                    HStack {
-                        Text(transaction.description)
-                        Spacer()
-                        Text(abs(transaction.amount), format: .currency(code: "USD"))
-                            .foregroundColor(.red)
+                    
+                    if accountType == .checking {
+                        Divider()
+                        
+                        InfoRow(title: "Monthly Income", value: formatCurrency(gameState.monthlyIncome))
+                        InfoRow(title: "Monthly Expenses", value: formatCurrency(gameState.monthlyExpenses))
+                        InfoRow(title: "Net Cash Flow", value: formatCurrency(gameState.monthlyCashflow))
                     }
-                    .padding(.vertical, 2)
                 }
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(10)
+                .padding(.horizontal)
                 
-                HStack {
-                    Text("Total Expenses")
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Text(monthGroup.totalExpenses, format: .currency(code: "USD"))
-                        .fontWeight(.semibold)
-                        .foregroundColor(.red)
+                // Recent Transactions
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Recent Transactions")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    if transactions.isEmpty {
+                        Text("No recent transactions")
+                            .foregroundColor(.gray)
+                            .padding()
+                    } else {
+                        ForEach(transactions.prefix(10)) { transaction in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(transaction.description)
+                                        .font(.subheadline)
+                                    Text(transaction.date, style: .date)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                                Text(formatCurrency(transaction.amount))
+                                    .foregroundColor(transaction.isIncome ? .green : .red)
+                            }
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
                 }
-                .padding(.top, 4)
+                .padding(.horizontal)
             }
         }
-        .padding()
-        .background(Color(uiColor: .systemBackground))
-        .cornerRadius(12)
-        .shadow(radius: 2)
+        .navigationTitle(accountType.title)
     }
-}
-
-struct AccountDetailView_Previews: PreviewProvider {
-    static var previews: some View {
-        AccountDetailView(accountType: .checking)
-            .environmentObject(GameState())
+    
+    private var accountBalance: Double {
+        switch accountType {
+        case .checking:
+            return gameState.currentPlayer.bankBalance
+        case .savings:
+            return gameState.currentPlayer.savingsBalance
+        case .familyTrust:
+            return gameState.familyTrustBalance
+        case .creditCard:
+            return gameState.creditCardBalance
+        case .blackCard:
+            return gameState.blackCardBalance
+        case .platinumCard:
+            return gameState.platinumCardBalance
+        case .business:
+            return gameState.startupBalance
+        case .crypto:
+            return gameState.cryptoPortfolio.totalValue
+        case .equities:
+            return gameState.equityPortfolio.totalValue
+        }
+    }
+    
+    private var transactions: [Transaction] {
+        switch accountType {
+        case .business:
+            return gameState.businessTransactions
+        default:
+            return gameState.transactions
+        }
+    }
+    
+    private var accountIcon: String {
+        switch accountType {
+        case .checking:
+            return "dollarsign.circle.fill"
+        case .savings:
+            return "banknote.fill"
+        case .familyTrust:
+            return "building.columns.fill"
+        case .creditCard, .blackCard, .platinumCard:
+            return "creditcard.fill"
+        case .business:
+            return "building.2.fill"
+        case .crypto:
+            return "bitcoinsign.circle.fill"
+        case .equities:
+            return "chart.line.uptrend.xyaxis"
+        }
     }
 } 

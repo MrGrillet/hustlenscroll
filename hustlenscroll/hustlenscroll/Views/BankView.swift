@@ -14,10 +14,85 @@ struct BankView: View {
         return currencyFormatter.string(from: NSNumber(value: value)) ?? "$0.00"
     }
     
+    private var currentRole: Role? {
+        Role.getRole(byTitle: gameState.currentPlayer.role)
+    }
+    
+    private var isBlackCardEligible: Bool {
+        currentRole?.creditCardLimit == 1000000
+    }
+    
+    private var isPlatinumCardEligible: Bool {
+        let limit = currentRole?.creditCardLimit ?? 0
+        return limit >= 100000
+    }
+    
+    private var creditLimit: Double {
+        currentRole?.creditCardLimit ?? 5000
+    }
+    
+    private var blackCardAvailableCredit: Double {
+        1000000 - gameState.blackCardBalance
+    }
+    
+    private var platinumCardAvailableCredit: Double {
+        100000 - gameState.platinumCardBalance
+    }
+    
+    private var standardCardAvailableCredit: Double {
+        creditLimit - gameState.creditCardBalance
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 30) {
+                    // Wealth Management Section
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("Wealth Management")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        // Black Card
+                        if isBlackCardEligible {
+                            NavigationLink(destination: BlackCardView()) {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Black Card")
+                                        .font(.title3)
+                                        .bold()
+                                        .padding(.bottom, 5)
+                                    
+                                    InfoRow(title: "Balance", value: formatCurrency(gameState.blackCardBalance))
+                                    InfoRow(title: "Available Credit", value: formatCurrency(blackCardAvailableCredit))
+                                    InfoRow(title: "Interest Rate", value: "1.0% APR")
+                                }
+                                .padding()
+                                .background(Color.black)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
+                            }
+                        }
+                        
+                        // Family Trust Account
+                        NavigationLink(destination: FamilyTrustView()) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Family Trust")
+                                    .font(.title3)
+                                    .bold()
+                                    .padding(.bottom, 5)
+                                
+                                InfoRow(title: "Balance", value: formatCurrency(gameState.familyTrustBalance))
+                                InfoRow(title: "Monthly Interest", value: formatCurrency(gameState.familyTrustBalance * 0.005))
+                                InfoRow(title: "Annual Return", value: "6.0%")
+                            }
+                            .padding()
+                            .background(Color.purple.opacity(0.1))
+                            .foregroundColor(.black)
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal)
+
                     // Personal Accounts Section
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Personal Accounts")
@@ -61,6 +136,29 @@ struct BankView: View {
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(10)
                         
+                        // Platinum Card
+                        if isPlatinumCardEligible {
+                            NavigationLink(destination: PlatinumCardView()) {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("Platinum Card")
+                                        .font(.title3)
+                                        .bold()
+                                        .padding(.bottom, 5)
+                                    
+                                    InfoRow(title: "Balance", value: formatCurrency(gameState.platinumCardBalance))
+                                    InfoRow(title: "Available Credit", value: formatCurrency(platinumCardAvailableCredit))
+                                    InfoRow(title: "Interest Rate", value: "8.0% APR")
+                                }
+                                .padding()
+                                .background(LinearGradient(
+                                    gradient: Gradient(colors: [Color.gray.opacity(0.8), Color.white.opacity(0.8)]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                                .cornerRadius(10)
+                            }
+                        }
+                        
                         // Credit Card
                         NavigationLink {
                             CreditCardView()
@@ -72,8 +170,8 @@ struct BankView: View {
                                     .padding(.bottom, 5)
                                 
                                 InfoRow(title: "Balance", value: formatCurrency(gameState.creditCardBalance))
-                                InfoRow(title: "Credit Limit", value: formatCurrency(gameState.creditLimit))
-                                InfoRow(title: "Available Credit", value: formatCurrency(gameState.creditLimit - gameState.creditCardBalance))
+                                InfoRow(title: "Credit Limit", value: formatCurrency(creditLimit))
+                                InfoRow(title: "Available Credit", value: formatCurrency(standardCardAvailableCredit))
                             }
                         }
                         .padding()
@@ -128,7 +226,7 @@ struct BankView: View {
                     .padding(.horizontal)
                     
                     // Business Accounts Section (if exists)
-                    if !gameState.activeBusinesses.isEmpty {
+                    if gameState.hasStartup {
                         VStack(alignment: .leading, spacing: 15) {
                             Text("Business Accounts")
                                 .font(.headline)
