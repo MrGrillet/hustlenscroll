@@ -220,6 +220,44 @@ struct TradingInputView: View {
     }
     
     private func processPurchase() {
-        // ... existing code ...
+        if assetUpdate.type == .crypto {
+            gameState.buyCrypto(
+                symbol: assetUpdate.symbol,
+                name: getAssetName(for: assetUpdate.symbol),
+                quantity: quantity,
+                price: assetUpdate.newPrice
+            )
+        } else {
+            gameState.buyStock(
+                symbol: assetUpdate.symbol,
+                name: getAssetName(for: assetUpdate.symbol),
+                quantity: quantity,
+                price: assetUpdate.newPrice
+            )
+        }
+        
+        // Record transaction
+        gameState.transactions.append(Transaction(
+            date: Date(),
+            description: "Buy \(quantity) \(assetUpdate.symbol)",
+            amount: -totalCost,
+            isIncome: false
+        ))
+        
+        // Reset quantity
+        quantity = 0
+        
+        // Save state
+        gameState.saveState()
+    }
+    
+    private func getAssetName(for symbol: String) -> String {
+        switch symbol {
+        case "BTC": return "Bitcoin"
+        case "ETH": return "Ethereum"
+        case "SOL": return "Solana"
+        case "DOGE": return "Dogecoin"
+        default: return symbol
+        }
     }
 } 

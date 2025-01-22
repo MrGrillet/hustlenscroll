@@ -11,18 +11,6 @@ struct DMListView: View {
         // When showArchived is true, show all messages. When false, only show active messages
         let filteredMessages = showArchived ? gameState.messages : gameState.activeMessages
         
-        print("Total messages in gameState: \(gameState.messages.count)")
-        print("Active messages: \(gameState.activeMessages.count)")
-        print("Filtered messages: \(filteredMessages.count)")
-        print("Unread count: \(gameState.unreadMessageCount)")
-        
-        // Debug print unread messages
-        let unreadMessages = gameState.messages.filter { !$0.isRead }
-        print("Unread messages:")
-        for msg in unreadMessages {
-            print("- \(msg.senderName): \(msg.content.prefix(30))...")
-        }
-        
         // First group messages by sender
         let threads = Dictionary(grouping: filteredMessages) { $0.senderId }
             .map { senderId, messages in
@@ -43,8 +31,6 @@ struct DMListView: View {
                 )
             }
         
-        print("Number of threads: \(threads.count)")
-        
         // Sort threads by timestamp, newest first
         return threads.sorted { $0.lastMessageTimestamp > $1.lastMessageTimestamp }
     }
@@ -56,7 +42,6 @@ struct DMListView: View {
                     NavigationLink {
                         MessageThreadView(thread: thread)
                             .onAppear {
-                                print("🟢 MessageThreadView appeared for: \(thread.senderName)")
                                 gameState.markThreadAsRead(senderId: thread.senderId)
                                 listUpdateTrigger.toggle()
                             }
@@ -97,7 +82,6 @@ struct DMListView: View {
             .navigationTitle("Messages")
         }
         .onAppear {
-            print("📋 DMListView appeared")
             gameState.objectWillChange.send()
             listUpdateTrigger.toggle()
         }

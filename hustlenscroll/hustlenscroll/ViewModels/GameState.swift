@@ -679,6 +679,7 @@ class GameState: ObservableObject {
         // Process the opportunity acceptance
         activeBusinesses.append(opportunity)
         currentPlayer.activeBusinesses.append(opportunity.id.uuidString)
+        hasStartup = true  // Set hasStartup to true when a business is added
         
         // Record the transaction
         let transaction = Transaction(
@@ -719,28 +720,11 @@ class GameState: ObservableObject {
     
     // Add a method to add a message to a thread
     func addMessageToThread(senderId: String, message: Message) {
-        print("🧵 Adding message to thread:")
-        print("  - Sender ID: \(senderId)")
-        print("  - Sender Name: \(message.senderName)")
-        print("  - Content: \(message.content.prefix(50))...")
-        
         messages.append(message)
-        print("  - Total messages after append: \(messages.count)")
-        
-        // Get all messages in this thread
-        let threadMessages = messages.filter { $0.senderId == senderId }
-        print("  - Messages in thread: \(threadMessages.count)")
-        
-        objectWillChange.send()
-        saveState()
     }
     
     // Update the handleOpportunityResponse method to use the thread
     func handleOpportunityResponse(message: Message, accepted: Bool) {
-        print("🎯 Handling opportunity response:")
-        print("  - Original sender: \(message.senderId)")
-        print("  - Accepted: \(accepted)")
-        
         // Create user's response message
         let userMessage = Message(
             senderId: message.senderId,  // Use the same senderId to keep in thread
@@ -752,7 +736,6 @@ class GameState: ObservableObject {
                 BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
             isRead: true
         )
-        print("  - Adding user response message")
         addMessageToThread(senderId: message.senderId, message: userMessage)
         
         // Create broker's response
@@ -766,7 +749,6 @@ class GameState: ObservableObject {
                 BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
             isRead: false
         )
-        print("  - Adding broker response message")
         addMessageToThread(senderId: message.senderId, message: brokerMessage)
         
         if accepted {
@@ -782,14 +764,12 @@ class GameState: ObservableObject {
                 ),
                 isRead: false
             )
-            print("  - Adding accountant confirmation message")
             addMessageToThread(senderId: accountantMessage.senderId, message: accountantMessage)
         }
         
         // Update the original message's status
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
             messages[index].opportunityStatus = accepted ? .accepted : .rejected
-            print("  - Updated original message status to: \(accepted ? "accepted" : "rejected")")
         }
         
         objectWillChange.send()
@@ -1198,7 +1178,6 @@ class GameState: ObservableObject {
     // Update the unreadMessageCount to count actual unread messages
     var unreadMessageCount: Int {
         let unreadMessages = messages.filter { !$0.isRead && !$0.isArchived }
-        print("📊 Unread message count: \(unreadMessages.count)")
         return unreadMessages.count
     }
     
@@ -1463,10 +1442,8 @@ class GameState: ObservableObject {
     }
     
     func addPost(_ post: Post) {
-        print("Adding new post: \(post.content)")
         userPosts.insert(post, at: 0)
         posts.insert(post, at: 0)  // Add to both arrays to ensure visibility
-        print("Current user posts count: \(userPosts.count)")
         saveState()  // Save state immediately after adding post
         objectWillChange.send()
     }
@@ -1647,23 +1624,13 @@ class GameState: ObservableObject {
     }
     
     func markThreadAsRead(senderId: String) {
-        print("⚡️ Marking thread as read for sender: \(senderId)")
         var updatedMessages = messages
         var messageCount = 0
-        var unreadMessages: [Message] = []
-        
-        // First, collect all unread messages in the thread
-        for message in messages where message.senderId == senderId && !message.isRead {
-            unreadMessages.append(message)
-        }
-        
-        print("  - Found \(unreadMessages.count) unread messages in thread")
         
         // Mark all messages in the thread as read
         for index in updatedMessages.indices {
             if updatedMessages[index].senderId == senderId {
                 if !updatedMessages[index].isRead {
-                    print("  - Marking message as read: \(updatedMessages[index].content.prefix(50))...")
                     updatedMessages[index].isRead = true
                     messageCount += 1
                 }
@@ -1672,20 +1639,10 @@ class GameState: ObservableObject {
         
         // Only update if we actually changed something
         if messageCount > 0 {
-            print("⚡️ Marked \(messageCount) messages as read")
             messages = updatedMessages
             objectWillChange.send()
             saveState()
-        } else {
-            print("⚡️ No unread messages found in thread")
         }
-        
-        // Print the current state of messages
-        print("📊 Current message state:")
-        print("  - Total messages: \(messages.count)")
-        print("  - Unread messages: \(messages.filter { !$0.isRead }.count)")
-        let threads = Dictionary(grouping: messages, by: { $0.senderId })
-        print("  - Total threads: \(threads.count)")
     }
     
     private func handleBabyEvent() {
