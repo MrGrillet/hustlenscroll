@@ -105,7 +105,13 @@ struct PostButton: View {
                 showingInvestmentDetail = true
             } else if post.linkedMarketUpdate != nil {
                 selectedPost = post
-                activeSheet = .tradingUpdate
+                // Check if this is a startup update
+                if let update = post.linkedMarketUpdate?.updates.first,
+                   update.type == .startup {
+                    activeSheet = .startupUpdate
+                } else {
+                    activeSheet = .tradingUpdate
+                }
             } else if isTrendingTopic {
                 activeSheet = .trending
             }
@@ -369,7 +375,7 @@ struct MarketUpdateView: View {
     @EnvironmentObject var gameState: GameState
     
     var body: some View {
-        if let update = gameState.currentMarketUpdate,
+        if let update = post.linkedMarketUpdate,
            let assetUpdate = update.updates.first {
             NavigationView {
                 ScrollView {

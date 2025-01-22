@@ -59,24 +59,24 @@ struct MarketUpdate: Identifiable, Codable {
     
     static let startupUpdates: [Update] = [
         // AI Health Tech Startup updates
-        Update(symbol: "AI Health Tech", newPrice: 0.0, newMultiple: 12.5, message: "AI diagnostics platform valuation soars as new partnerships announced", type: Asset.AssetType.startup),
-        Update(symbol: "AI Health Tech", newPrice: 0.0, newMultiple: 8.0, message: "AI health tech startup multiple drops amid tech sector correction", type: Asset.AssetType.startup),
-        Update(symbol: "AI Health Tech", newPrice: 0.0, newMultiple: 15.0, message: "AI health tech startup reaches unicorn status with breakthrough technology", type: Asset.AssetType.startup),
+        Update(symbol: "AI Health Tech", newPrice: 0.0, newMultiple: 12.5, message: "AI diagnostics platform valuation soars to 12.5x annual cash flow as new partnerships announced 📈", type: Asset.AssetType.startup),
+        Update(symbol: "AI Health Tech", newPrice: 0.0, newMultiple: 8.0, message: "AI health tech startup multiple drops to 8.0x amid tech sector correction 📉", type: Asset.AssetType.startup),
+        Update(symbol: "AI Health Tech", newPrice: 0.0, newMultiple: 15.0, message: "AI health tech startup reaches unicorn status at 15.0x multiple with breakthrough technology 🦄", type: Asset.AssetType.startup),
         
         // Event Booking Platform updates
-        Update(symbol: "Event Platform", newPrice: 0.0, newMultiple: 10.0, message: "Event booking platform valuation rises on international expansion", type: Asset.AssetType.startup),
-        Update(symbol: "Event Platform", newPrice: 0.0, newMultiple: 7.0, message: "Event booking platform multiple decreases due to market concerns", type: Asset.AssetType.startup),
-        Update(symbol: "Event Platform", newPrice: 0.0, newMultiple: 13.0, message: "Event booking platform valuation explodes after major partnership", type: Asset.AssetType.startup),
+        Update(symbol: "Event Platform", newPrice: 0.0, newMultiple: 10.0, message: "Event booking platform valuation rises to 10.0x on international expansion 📈", type: Asset.AssetType.startup),
+        Update(symbol: "Event Platform", newPrice: 0.0, newMultiple: 7.0, message: "Event booking platform multiple decreases to 7.0x due to market concerns 📉", type: Asset.AssetType.startup),
+        Update(symbol: "Event Platform", newPrice: 0.0, newMultiple: 13.0, message: "Event booking platform valuation explodes to 13.0x after major partnership 🚀", type: Asset.AssetType.startup),
         
         // Fitness App updates
-        Update(symbol: "Fitness App", newPrice: 0.0, newMultiple: 9.0, message: "Fitness tracking app gains traction with new AI features", type: Asset.AssetType.startup),
-        Update(symbol: "Fitness App", newPrice: 0.0, newMultiple: 6.5, message: "Fitness app multiple drops amid increased competition", type: Asset.AssetType.startup),
-        Update(symbol: "Fitness App", newPrice: 0.0, newMultiple: 11.0, message: "Fitness app valuation jumps after user growth acceleration", type: Asset.AssetType.startup),
+        Update(symbol: "Fitness App", newPrice: 0.0, newMultiple: 9.0, message: "Fitness tracking app gains traction with new AI features, now at 9.0x multiple 📈", type: Asset.AssetType.startup),
+        Update(symbol: "Fitness App", newPrice: 0.0, newMultiple: 6.5, message: "Fitness app multiple drops to 6.5x amid increased competition 📉", type: Asset.AssetType.startup),
+        Update(symbol: "Fitness App", newPrice: 0.0, newMultiple: 11.0, message: "Fitness app valuation jumps to 11.0x after user growth acceleration 🚀", type: Asset.AssetType.startup),
         
         // Developer Tool updates
-        Update(symbol: "Dev Tool", newPrice: 0.0, newMultiple: 8.5, message: "Developer productivity tool attracts major tech investment", type: Asset.AssetType.startup),
-        Update(symbol: "Dev Tool", newPrice: 0.0, newMultiple: 5.5, message: "Developer tool multiple falls due to monetization challenges", type: Asset.AssetType.startup),
-        Update(symbol: "Dev Tool", newPrice: 0.0, newMultiple: 14.0, message: "Developer tool valuation skyrockets with enterprise adoption", type: Asset.AssetType.startup)
+        Update(symbol: "Dev Tool", newPrice: 0.0, newMultiple: 8.5, message: "Developer productivity tool attracts major tech investment, reaching 8.5x multiple 📈", type: Asset.AssetType.startup),
+        Update(symbol: "Dev Tool", newPrice: 0.0, newMultiple: 5.5, message: "Developer tool multiple falls to 5.5x due to monetization challenges 📉", type: Asset.AssetType.startup),
+        Update(symbol: "Dev Tool", newPrice: 0.0, newMultiple: 14.0, message: "Developer tool valuation skyrockets to 14.0x with enterprise adoption 🚀", type: Asset.AssetType.startup)
     ]
     
     static func generateRandomUpdate() -> MarketUpdate {

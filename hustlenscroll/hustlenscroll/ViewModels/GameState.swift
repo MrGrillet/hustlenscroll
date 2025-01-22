@@ -904,10 +904,11 @@ class GameState: ObservableObject {
                 return .opportunity(isLarge ? .large : .small)
             }
             
-            // Startup exits: 10/360 = ~2.78%
-            cumulativeProbability += 2.78
+            // Startup updates and exits: 40/360 = ~11.11%
+            cumulativeProbability += 11.11
             if random < cumulativeProbability {
-                return .startupExit
+                // 50% chance for exit check, 50% chance for update
+                return Bool.random() ? .startupExit : .equityUpdate
             }
             
             // Equity updates: 24/360 = ~6.67%
@@ -956,8 +957,8 @@ class GameState: ObservableObject {
             checkStartupExitOpportunities()
         }
         
-        // Add new filler posts after market updates
-        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 2...4))
+        // Add new filler posts after market updates (10-15 posts)
+        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 10...15))
         posts.insert(contentsOf: newPosts, at: 0)
         
         // Limit total posts to prevent memory issues
@@ -1339,38 +1340,54 @@ class GameState: ObservableObject {
             // Only update businesses that match the market update's symbol
             if let update = currentMarketUpdate?.updates.first,
                business.symbol == update.symbol {
-                business.currentExitMultiple += change
+                // Make the change more significant
+                let multiplier = Double.random(in: 1.1...1.5)  // 10-50% increase
+                business.currentExitMultiple = business.currentExitMultiple * multiplier
                 // Ensure multiple doesn't go below 1
                 business.currentExitMultiple = max(1.0, business.currentExitMultiple)
                 activeBusinesses[i] = business
+                
+                // Check for exit opportunity immediately after a significant increase
+                if business.currentExitMultiple >= business.potentialSaleMultiple * 1.2 {
+                    checkStartupExitOpportunities()
+                }
             }
         }
     }
     
     private func checkStartupExitOpportunities() {
         for business in activeBusinesses {
-            if business.currentExitMultiple >= business.potentialSaleMultiple * 1.5 {
+            if business.currentExitMultiple >= business.potentialSaleMultiple * 1.2 {  // Reduced from 1.5x to 1.2x
                 // Present exit opportunity
                 showingExitOpportunity = business
                 
-                // Add message about exit opportunity
-                let exitMessage = Message(
-                    senderId: "exit_advisor",
-                    senderName: "Sarah Chen",
-                    senderRole: "M&A Advisor",
-                    timestamp: Date(),
-                    content: """
-                    🔥 Hot Exit Opportunity for \(business.title)!
-                    
-                    Current valuation: $\(Int(business.currentExitValue))
-                    Exit Multiple: \(String(format: "%.1fx", business.currentExitMultiple)) annual cash flow
-                    
-                    This is significantly above our target exit multiple of \(String(format: "%.1fx", business.potentialSaleMultiple)). 
-                    Would you like to explore selling the business at this valuation?
-                    """,
-                    isRead: false
+                // Create market update for the startup
+                let update = MarketUpdate.Update(
+                    symbol: business.symbol,
+                    newPrice: 0.0,
+                    newMultiple: business.currentExitMultiple,
+                    message: "🚀 Hot Exit Opportunity: \(business.title) valuation soars to $\(Int(business.currentExitValue)) (\(String(format: "%.1fx", business.currentExitMultiple)) annual cash flow)",
+                    type: .startup
                 )
-                messages.append(exitMessage)
+                
+                let marketUpdate = MarketUpdate(
+                    title: "Startup Exit Opportunity",
+                    description: "Hot exit opportunity for \(business.title)",
+                    updates: [update]
+                )
+                
+                // Create and insert the market update post
+                let post = Post(
+                    author: "Sarah Chen",
+                    role: "M&A Advisor",
+                    content: update.message,
+                    timestamp: Date(),
+                    isSponsored: true,
+                    linkedOpportunity: nil,
+                    linkedInvestment: nil,
+                    linkedMarketUpdate: marketUpdate
+                )
+                posts.insert(post, at: 0)
                 break  // Only show one exit opportunity at a time
             }
         }

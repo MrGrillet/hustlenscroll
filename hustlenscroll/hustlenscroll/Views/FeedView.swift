@@ -49,6 +49,7 @@ struct FeedPostView: View {
     let post: Post
     @State private var showingInvestmentDetail = false
     @State private var activeSheet: PostView.ActiveSheet?
+    @State private var selectedBusinesses = Set<BusinessOpportunity>()
     @EnvironmentObject var gameState: GameState
     
     var body: some View {
@@ -136,8 +137,16 @@ struct FeedPostView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            if post.linkedOpportunity != nil || post.linkedInvestment != nil || post.linkedMarketUpdate != nil {
+            if post.linkedOpportunity != nil || post.linkedInvestment != nil {
                 showingInvestmentDetail = true
+            } else if post.linkedMarketUpdate != nil {
+                // Check if this is a startup update
+                if let update = post.linkedMarketUpdate?.updates.first,
+                   update.type == .startup {
+                    activeSheet = .startupUpdate
+                } else {
+                    activeSheet = .tradingUpdate
+                }
             }
         }
         .sheet(isPresented: $showingInvestmentDetail) {
@@ -157,7 +166,7 @@ struct FeedPostView: View {
                 MarketUpdateView(
                     post: post,
                     activeSheet: $activeSheet,
-                    selectedBusinesses: .constant([])
+                    selectedBusinesses: $selectedBusinesses
                 )
             }
         }
