@@ -4,26 +4,32 @@ struct MessageBubble: View {
     @Binding var message: Message
     @EnvironmentObject var gameState: GameState
     
+    private var isUserMessage: Bool {
+        message.senderName == gameState.currentPlayer.name
+    }
+    
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // Fixed width profile image container
-            ProfileImage(senderId: message.senderId, size: 40)
-                .frame(width: 40)
+            if !isUserMessage {
+                // Profile image for other users
+                ProfileImage(senderId: message.senderId, size: 40)
+                    .frame(width: 40)
+            }
             
             // Message content that takes remaining space
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: isUserMessage ? .trailing : .leading, spacing: 8) {
                 // Message content
                 Text(message.content)
                     .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
                     .padding()
-                    .background(Color.gray.opacity(0.1))
+                    .background(isUserMessage ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
                     .cornerRadius(12)
                 
                 // Opportunity details if present
                 if let opportunity = message.opportunity {
                     MessageOpportunityView(opportunity: opportunity)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
                     
                     // Only show buttons if the message is unread and pending
                     if message.opportunityStatus == .pending {
@@ -59,7 +65,6 @@ struct MessageBubble: View {
                             
                         case .investment:
                             Button {
-                                print("🔵 MessageBubble: 'Open Trading App' button pressed")
                                 NotificationCenter.default.post(
                                     name: NSNotification.Name("ShowInvestmentPurchase"),
                                     object: nil,
@@ -73,7 +78,6 @@ struct MessageBubble: View {
                                         type: .stock
                                     )]
                                 )
-                                print("🔵 MessageBubble: Posted ShowInvestmentPurchase notification")
                             } label: {
                                 Text("Open Trading App")
                                     .font(.headline)
@@ -102,7 +106,24 @@ struct MessageBubble: View {
                     .foregroundColor(.gray)
                     .hidden()
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
+            
+            if isUserMessage {
+                // Profile image for user messages
+                if let profileImage = gameState.getProfileImage() {
+                    Image(uiImage: profileImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.gray.opacity(0.2), lineWidth: 1))
+                } else {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .frame(width: 40, height: 40)
+                        .foregroundColor(.blue)
+                }
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)

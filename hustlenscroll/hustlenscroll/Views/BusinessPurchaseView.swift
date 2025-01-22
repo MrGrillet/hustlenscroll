@@ -76,7 +76,7 @@ struct BusinessPurchaseView: View {
                                 }
                                 
                                 Button {
-                                    handleAcceptance()
+                                    handlePurchase()
                                 } label: {
                                     Text("Accept")
                                         .font(.headline)
@@ -114,17 +114,22 @@ struct BusinessPurchaseView: View {
         }
     }
     
-    private func handleAcceptance() {
+    private func handlePurchase() {
+        print("💼 Handling business purchase:")
+        print("  - Business: \(opportunity.title)")
+        print("  - Cost: $\(opportunity.setupCost)")
+        
         // Add user's acceptance message
         let userMessage = Message(
-            senderId: "USER",
+            senderId: opportunity.source == .partner ? "broker" : "founder",
             senderName: gameState.currentPlayer.name,
             senderRole: gameState.currentPlayer.role,
             timestamp: Date(),
             content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages),
             isRead: true
         )
-        gameState.messages.append(userMessage)
+        print("  - Adding user acceptance message")
+        gameState.addMessageToThread(senderId: userMessage.senderId, message: userMessage)
         
         // Add broker's follow-up message
         let brokerMessage = Message(
@@ -135,23 +140,29 @@ struct BusinessPurchaseView: View {
             content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerFollowUpMessages),
             isRead: false
         )
-        gameState.messages.append(brokerMessage)
+        print("  - Adding broker follow-up message")
+        gameState.addMessageToThread(senderId: brokerMessage.senderId, message: brokerMessage)
         
         // Process the purchase
+        print("  - Processing payment:")
         if canAffordWithBank {
+            print("    Using bank account")
             gameState.currentPlayer.bankBalance -= opportunity.setupCost
         } else if canAffordWithSavings {
+            print("    Using savings account")
             gameState.currentPlayer.savingsBalance -= opportunity.setupCost
         } else if canAffordWithCredit {
+            print("    Using credit card")
             gameState.creditCardBalance += opportunity.setupCost
         }
         
         // Add the business
+        print("  - Adding business to portfolio")
         gameState.acceptOpportunity(opportunity)
         
         // Add accountant's confirmation
         let accountantMessage = Message(
-            senderId: "accountant",
+            senderId: "accountant",  // Use accountant's own thread
             senderName: "Steven Johnson",
             senderRole: "Accountant",
             timestamp: Date().addingTimeInterval(60),
@@ -161,24 +172,28 @@ struct BusinessPurchaseView: View {
             ),
             isRead: false
         )
-        gameState.messages.append(accountantMessage)
+        print("  - Adding accountant confirmation message")
+        gameState.addMessageToThread(senderId: accountantMessage.senderId, message: accountantMessage)
         
-        gameState.objectWillChange.send()
-        gameState.saveState()
+        print("  - Purchase complete, dismissing view")
         dismiss()
     }
     
     private func handleRejection() {
+        print("❌ Handling business rejection:")
+        print("  - Business: \(opportunity.title)")
+        
         // Add user's rejection message
         let userMessage = Message(
-            senderId: "USER",
+            senderId: opportunity.source == .partner ? "broker" : "founder",
             senderName: gameState.currentPlayer.name,
             senderRole: gameState.currentPlayer.role,
             timestamp: Date(),
             content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
             isRead: true
         )
-        gameState.messages.append(userMessage)
+        print("  - Adding user rejection message")
+        gameState.addMessageToThread(senderId: userMessage.senderId, message: userMessage)
         
         // Add broker's response
         let brokerMessage = Message(
@@ -189,10 +204,10 @@ struct BusinessPurchaseView: View {
             content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
             isRead: false
         )
-        gameState.messages.append(brokerMessage)
+        print("  - Adding broker response message")
+        gameState.addMessageToThread(senderId: brokerMessage.senderId, message: brokerMessage)
         
-        gameState.objectWillChange.send()
-        gameState.saveState()
+        print("  - Rejection complete, dismissing view")
         dismiss()
     }
 } 

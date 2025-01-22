@@ -712,60 +712,83 @@ class GameState: ObservableObject {
         return title
     }
     
-    func handleOpportunityResponse(message: Message, accepted: Bool) {
-        guard let opportunity = message.opportunity else { return }
+    // Add a method to add a message to a thread
+    func addMessageToThread(senderId: String, message: Message) {
+        print("🧵 Adding message to thread:")
+        print("  - Sender ID: \(senderId)")
+        print("  - Sender Name: \(message.senderName)")
+        print("  - Content: \(message.content.prefix(50))...")
         
-        // Mark the original message as read and update its status
-        if let index = messages.firstIndex(where: { $0.id == message.id }) {
-            DispatchQueue.main.async {
-                var updatedMessage = message
-                updatedMessage.isRead = true
-                updatedMessage.opportunityStatus = accepted ? .accepted : .rejected
-                self.messages[index] = updatedMessage
-                
-                if accepted {
-                    switch opportunity.type {
-                    case .investment:
-                        // Find the matching investment in the posts based on the opportunity title
-                        if let post = self.posts.first(where: { 
-                            guard let investment = $0.linkedInvestment else { return false }
-                            return investment.name == opportunity.title
-                        }), let asset = post.linkedInvestment {
-                            // Show investment purchase view with the correct asset
-                            NotificationCenter.default.post(
-                                name: NSNotification.Name("ShowInvestmentPurchase"),
-                                object: nil,
-                                userInfo: ["asset": asset]
-                            )
-                        }
-                    default:
-                        // Create a business opportunity from the message opportunity
-                        let businessOpp = BusinessOpportunity(
-                            title: opportunity.title,
-                            description: opportunity.description,
-                            source: .partner,
-                            opportunityType: self.convertOpportunityType(opportunity.type),
-                            monthlyRevenue: opportunity.monthlyRevenue ?? 0,
-                            monthlyExpenses: opportunity.monthlyExpenses ?? 0,
-                            setupCost: opportunity.requiredInvestment ?? 0,
-                            potentialSaleMultiple: 3.0,
-                            revenueShare: opportunity.revenueShare ?? 100.0,
-                            type: .opportunity,
-                            symbol: self.getSymbolForTitle(opportunity.title)
-                        )
-                        
-                        // Show business purchase view
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("ShowBusinessPurchase"),
-                            object: nil,
-                            userInfo: ["opportunity": businessOpp]
-                        )
-                    }
-                }
-                
-                self.objectWillChange.send()
-            }
+        messages.append(message)
+        print("  - Total messages after append: \(messages.count)")
+        
+        // Get all messages in this thread
+        let threadMessages = messages.filter { $0.senderId == senderId }
+        print("  - Messages in thread: \(threadMessages.count)")
+        
+        objectWillChange.send()
+        saveState()
+    }
+    
+    // Update the handleOpportunityResponse method to use the thread
+    func handleOpportunityResponse(message: Message, accepted: Bool) {
+        print("🎯 Handling opportunity response:")
+        print("  - Original sender: \(message.senderId)")
+        print("  - Accepted: \(accepted)")
+        
+        // Create user's response message
+        let userMessage = Message(
+            senderId: message.senderId,  // Use the same senderId to keep in thread
+            senderName: currentPlayer.name,
+            senderRole: currentPlayer.role,
+            timestamp: Date(),
+            content: accepted ? 
+                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages) :
+                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
+            isRead: true
+        )
+        print("  - Adding user response message")
+        addMessageToThread(senderId: message.senderId, message: userMessage)
+        
+        // Create broker's response
+        let brokerMessage = Message(
+            senderId: message.senderId,  // Use the same senderId to keep in thread
+            senderName: message.senderName,
+            senderRole: message.senderRole,
+            timestamp: Date().addingTimeInterval(30),
+            content: accepted ?
+                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerFollowUpMessages) :
+                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
+            isRead: false
+        )
+        print("  - Adding broker response message")
+        addMessageToThread(senderId: message.senderId, message: brokerMessage)
+        
+        if accepted {
+            // Add accountant's confirmation
+            let accountantMessage = Message(
+                senderId: "accountant",  // Use accountant's own thread
+                senderName: "Steven Johnson",
+                senderRole: "Accountant",
+                timestamp: Date().addingTimeInterval(60),
+                content: BusinessResponseMessages.getRandomMessage(
+                    BusinessResponseMessages.accountantConfirmations,
+                    replacements: ["company": message.opportunity?.title ?? ""]
+                ),
+                isRead: false
+            )
+            print("  - Adding accountant confirmation message")
+            addMessageToThread(senderId: accountantMessage.senderId, message: accountantMessage)
         }
+        
+        // Update the original message's status
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            messages[index].opportunityStatus = accepted ? .accepted : .rejected
+            print("  - Updated original message status to: \(accepted ? "accepted" : "rejected")")
+        }
+        
+        objectWillChange.send()
+        saveState()
     }
     
     private func applyTrendingTopic(_ topic: TrendingTopic) {
@@ -1510,11 +1533,20 @@ class GameState: ObservableObject {
         print("⚡️ Marking thread as read for sender: \(senderId)")
         var updatedMessages = messages
         var messageCount = 0
+        var unreadMessages: [Message] = []
+        
+        // First, collect all unread messages in the thread
+        for message in messages where message.senderId == senderId && !message.isRead {
+            unreadMessages.append(message)
+        }
+        
+        print("  - Found \(unreadMessages.count) unread messages in thread")
         
         // Mark all messages in the thread as read
         for index in updatedMessages.indices {
             if updatedMessages[index].senderId == senderId {
                 if !updatedMessages[index].isRead {
+                    print("  - Marking message as read: \(updatedMessages[index].content.prefix(50))...")
                     updatedMessages[index].isRead = true
                     messageCount += 1
                 }
@@ -1530,6 +1562,13 @@ class GameState: ObservableObject {
         } else {
             print("⚡️ No unread messages found in thread")
         }
+        
+        // Print the current state of messages
+        print("📊 Current message state:")
+        print("  - Total messages: \(messages.count)")
+        print("  - Unread messages: \(messages.filter { !$0.isRead }.count)")
+        let threads = Dictionary(grouping: messages, by: { $0.senderId })
+        print("  - Total threads: \(threads.count)")
     }
 }
 
