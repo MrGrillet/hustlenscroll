@@ -676,10 +676,20 @@ class GameState: ObservableObject {
     }
     
     func acceptOpportunity(_ opportunity: BusinessOpportunity) {
+        print("\n💼 BUSINESS ACCEPTANCE LOG:")
+        print("----------------------------------------")
+        print("Initial State:")
+        print("  - Active Businesses Count: \(activeBusinesses.count)")
+        print("  - Business: \(opportunity.title)")
+        
         // Process the opportunity acceptance
         activeBusinesses.append(opportunity)
         currentPlayer.activeBusinesses.append(opportunity.id.uuidString)
         hasStartup = true  // Set hasStartup to true when a business is added
+        
+        print("\nAdding Business to Portfolio:")
+        print("  - Active Businesses Before: \(activeBusinesses.count - 1)")
+        print("  - Active Businesses After: \(activeBusinesses.count)")
         
         // Record the transaction
         let transaction = Transaction(
@@ -689,6 +699,28 @@ class GameState: ObservableObject {
             isIncome: false
         )
         transactions.append(transaction)
+        
+        // Create confirmation message with unique ID
+        let confirmationMessage = Message(
+            id: UUID(),  // Ensure unique ID
+            senderId: "accountant",
+            senderName: "Steven Johnson",
+            senderRole: "Accountant",
+            timestamp: Date(),
+            content: "Great news! The paperwork for \(opportunity.title) is all set. The business is now officially yours.",
+            isRead: false
+        )
+        
+        print("\nAdding Confirmation Message:")
+        print("  - Message ID: \(confirmationMessage.id)")
+        print("  - Content: \(confirmationMessage.content)")
+        
+        messages.append(confirmationMessage)
+        
+        print("\nFinal State:")
+        print("  - Active Businesses Count: \(activeBusinesses.count)")
+        print("  - Business Present: \(activeBusinesses.contains(where: { $0.id == opportunity.id }))")
+        print("----------------------------------------")
         
         saveState()
         objectWillChange.send()
@@ -725,36 +757,64 @@ class GameState: ObservableObject {
     
     // Update the handleOpportunityResponse method to use the thread
     func handleOpportunityResponse(message: Message, accepted: Bool) {
-        // Create user's response message
+        print("\n💬 OPPORTUNITY RESPONSE LOG:")
+        print("----------------------------------------")
+        print("Initial Message Details:")
+        print("  - Original Message ID: \(message.id)")
+        print("  - Original Sender: \(message.senderName)")
+        print("  - Action: \(accepted ? "Accepting" : "Rejecting") opportunity")
+        
+        // Update the original message's status first
+        if let index = messages.firstIndex(where: { $0.id == message.id }) {
+            messages[index].opportunityStatus = accepted ? .accepted : .rejected
+            print("\nUpdated Original Message Status:")
+            print("  - Status changed to: \(accepted ? "Accepted" : "Rejected")")
+        }
+        
+        // Create user's response message with unique ID
+        let userResponseId = UUID()
         let userMessage = Message(
-            senderId: message.senderId,  // Use the same senderId to keep in thread
+            id: userResponseId,
+            senderId: message.senderId,  // Keep original sender's ID for thread
             senderName: currentPlayer.name,
             senderRole: currentPlayer.role,
             timestamp: Date(),
             content: accepted ? 
                 BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages) :
                 BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
-            isRead: true
+            isRead: true,
+            opportunityId: message.id  // Link to original message
         )
-        addMessageToThread(senderId: message.senderId, message: userMessage)
+        messages.append(userMessage)
+        print("\nAdded User Response Message:")
+        print("  - Message ID: \(userResponseId)")
+        print("  - Content: \(userMessage.content)")
         
-        // Create broker's response
+        // Create broker's response with unique ID
+        let brokerResponseId = UUID()
         let brokerMessage = Message(
-            senderId: message.senderId,  // Use the same senderId to keep in thread
+            id: brokerResponseId,
+            senderId: message.senderId,  // Keep original sender's ID for thread
             senderName: message.senderName,
             senderRole: message.senderRole,
             timestamp: Date().addingTimeInterval(30),
             content: accepted ?
                 BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerFollowUpMessages) :
                 BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
-            isRead: false
+            isRead: false,
+            opportunityId: message.id  // Link to original message
         )
-        addMessageToThread(senderId: message.senderId, message: brokerMessage)
+        messages.append(brokerMessage)
+        print("\nAdded Broker Response Message:")
+        print("  - Message ID: \(brokerResponseId)")
+        print("  - Content: \(brokerMessage.content)")
         
         if accepted {
-            // Add accountant's confirmation
+            // Add accountant's confirmation with unique ID
+            let accountantResponseId = UUID()
             let accountantMessage = Message(
-                senderId: "accountant",  // Use accountant's own thread
+                id: accountantResponseId,
+                senderId: "accountant",
                 senderName: "Steven Johnson",
                 senderRole: "Accountant",
                 timestamp: Date().addingTimeInterval(60),
@@ -762,16 +822,20 @@ class GameState: ObservableObject {
                     BusinessResponseMessages.accountantConfirmations,
                     replacements: ["company": message.opportunity?.title ?? ""]
                 ),
-                isRead: false
+                isRead: false,
+                opportunityId: message.id  // Link to original message
             )
-            addMessageToThread(senderId: accountantMessage.senderId, message: accountantMessage)
+            messages.append(accountantMessage)
+            print("\nAdded Accountant Confirmation Message:")
+            print("  - Message ID: \(accountantResponseId)")
+            print("  - Content: \(accountantMessage.content)")
         }
         
-        // Update the original message's status
-        if let index = messages.firstIndex(where: { $0.id == message.id }) {
-            messages[index].opportunityStatus = accepted ? .accepted : .rejected
-        }
+        print("\nFinal State:")
+        print("  - Total messages in thread: \(messages.filter { $0.opportunityId == message.id }.count)")
+        print("----------------------------------------")
         
+        // Force UI update and save state
         objectWillChange.send()
         saveState()
     }

@@ -170,7 +170,16 @@ struct BusinessPurchaseView: View {
                             .disabled(!canAffordWithSavings)
 
                             // Reject Button
-                            Button(action: { dismiss() }) {
+                            Button(action: {
+                                // Get the original message from the game state
+                                if let originalMessage = gameState.messages.first(where: { message in
+                                    message.opportunity?.title == opportunity.title &&
+                                    message.opportunityStatus == .pending
+                                }) {
+                                    gameState.handleOpportunityResponse(message: originalMessage, accepted: false)
+                                }
+                                dismiss()
+                            }) {
                                 Text("Reject Opportunity")
                                     .font(.headline)
                                     .foregroundColor(.white)

@@ -12,6 +12,7 @@ struct Message: Identifiable, Codable {
     var isRead: Bool
     var isArchived: Bool
     var opportunityStatus: OpportunityStatus?
+    let opportunityId: UUID?
     
     enum OpportunityStatus: String, Codable {
         case pending
@@ -29,7 +30,8 @@ struct Message: Identifiable, Codable {
         opportunity: Opportunity? = nil,
         isRead: Bool = false,
         isArchived: Bool = false,
-        opportunityStatus: OpportunityStatus? = nil
+        opportunityStatus: OpportunityStatus? = nil,
+        opportunityId: UUID? = nil
     ) {
         self.id = id
         self.senderId = senderId
@@ -41,6 +43,7 @@ struct Message: Identifiable, Codable {
         self.isRead = isRead
         self.isArchived = isArchived
         self.opportunityStatus = opportunity != nil ? .pending : nil
+        self.opportunityId = opportunityId ?? (opportunity != nil ? id : nil)
     }
 }
 

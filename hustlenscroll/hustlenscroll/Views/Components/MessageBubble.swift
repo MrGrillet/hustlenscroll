@@ -9,105 +9,130 @@ struct MessageBubble: View {
     }
     
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if !isUserMessage {
-                // Profile image for other users
-                ProfileImage(senderId: message.senderId, size: 40)
-                    .frame(width: 40)
+        HStack(spacing: 0) {
+            if message.opportunityId != nil && message.id != message.opportunityId {
+                Spacer()
+                    .frame(width: 50)
             }
             
-            // Message content that takes remaining space
-            VStack(alignment: isUserMessage ? .trailing : .leading, spacing: 8) {
-                // Message content
-                Text(message.content)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
-                    .padding()
-                    .foregroundColor(isUserMessage ? .white : .black)
-                    .background(isUserMessage ? Color.black : Color.gray.opacity(0.1))
-                    .cornerRadius(12)
-                
-                // Opportunity details if present
-                if let opportunity = message.opportunity {
-                    MessageOpportunityView(opportunity: opportunity)
-                        .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
-                    
-                    // Only show buttons if the message is unread and pending
-                    if message.opportunityStatus == .pending {
-                        switch opportunity.type {
-                        case .startup:
-                            Button {
-                                NotificationCenter.default.post(
-                                    name: NSNotification.Name("ShowBusinessPurchase"),
-                                    object: nil,
-                                    userInfo: ["opportunity": BusinessOpportunity(
-                                        title: opportunity.title,
-                                        description: opportunity.description,
-                                        source: .partner,
-                                        opportunityType: .startup,
-                                        monthlyRevenue: opportunity.monthlyRevenue ?? 0,
-                                        monthlyExpenses: opportunity.monthlyExpenses ?? 0,
-                                        setupCost: opportunity.requiredInvestment ?? 0,
-                                        potentialSaleMultiple: 3.0,
-                                        revenueShare: opportunity.revenueShare ?? 100,
-                                        symbol: opportunity.title
-                                    )]
-                                )
-                            } label: {
-                                Text("Review Bank Accounts")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .cornerRadius(10)
-                            }
-                            .padding(.horizontal)
-                            
-                        case .investment:
-                            Button {
-                                NotificationCenter.default.post(
-                                    name: NSNotification.Name("ShowInvestmentPurchase"),
-                                    object: nil,
-                                    userInfo: ["asset": Asset(
-                                        id: UUID(),
-                                        symbol: opportunity.title,
-                                        name: opportunity.title,
-                                        quantity: 0,
-                                        currentPrice: opportunity.requiredInvestment ?? 0,
-                                        purchasePrice: 0,
-                                        type: .stock
-                                    )]
-                                )
-                            } label: {
-                                Text("Open Trading App")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.blue)
-                                    .cornerRadius(10)
-                            }
-                            .padding(.horizontal)
-                            
-                        default:
-                            EmptyView()
-                        }
-                    } else if let status = message.opportunityStatus {
-                        // Show status text
-                        Text(status == .accepted ? "Accepted ✓" : "Rejected ×")
-                            .foregroundColor(status == .accepted ? .green : .red)
-                            .padding(.top, 8)
-                    }
+            HStack(alignment: .top, spacing: 12) {
+                if !isUserMessage {
+                    // Profile image for other users
+                    ProfileImage(senderId: message.senderId, size: 40)
+                        .frame(width: 40)
                 }
                 
-                // Timestamp at bottom
-                Text(formatTimestamp(message.timestamp))
-                    .font(.caption)
-                    .foregroundColor(.gray)
-                    .hidden()
+                // Message content that takes remaining space
+                VStack(alignment: isUserMessage ? .trailing : .leading, spacing: 0) {
+                    // Message content
+                    Text(message.content)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
+                        .padding()
+                        .foregroundColor(isUserMessage ? .white : .black)
+                        .background(isUserMessage ? Color.black : Color.gray.opacity(0.1))
+                        .cornerRadius(12)
+                    
+                    // Opportunity details if present
+                    if let opportunity = message.opportunity {
+                        MessageOpportunityView(opportunity: opportunity)
+                            .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
+                            .padding(.top, message.id == message.opportunityId ? 20 : 0)
+                        
+                        // Only show buttons if this is the original opportunity message and it's pending
+                        if message.opportunityStatus == .pending && message.id == message.opportunityId {
+                            // Check if there are any responses to this opportunity
+                            let hasResponses = gameState.messages.contains { msg in
+                                msg.opportunityId == message.id && msg.id != message.id
+                            }
+                            
+                            if !hasResponses {
+                                switch opportunity.type {
+                                case .startup:
+                                    Button {
+                                        NotificationCenter.default.post(
+                                            name: NSNotification.Name("ShowBusinessPurchase"),
+                                            object: nil,
+                                            userInfo: ["opportunity": BusinessOpportunity(
+                                                title: opportunity.title,
+                                                description: opportunity.description,
+                                                source: .broker,
+                                                opportunityType: .startup,
+                                                monthlyRevenue: opportunity.monthlyRevenue ?? 0,
+                                                monthlyExpenses: opportunity.monthlyExpenses ?? 0,
+                                                setupCost: opportunity.requiredInvestment ?? 0,
+                                                potentialSaleMultiple: 3.0,
+                                                revenueShare: opportunity.revenueShare ?? 100,
+                                                symbol: opportunity.title
+                                            )]
+                                        )
+                                    } label: {
+                                        Text("Review Bank Accounts")
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding()
+                                            .background(Color.blue)
+                                            .cornerRadius(10)
+                                    }
+                                    .padding(.horizontal, 0)
+                                    .padding(.top, 4)
+                                    
+                                case .investment:
+                                    Button {
+                                        NotificationCenter.default.post(
+                                            name: NSNotification.Name("ShowInvestmentPurchase"),
+                                            object: nil,
+                                            userInfo: ["asset": Asset(
+                                                id: UUID(),
+                                                symbol: opportunity.title,
+                                                name: opportunity.title,
+                                                quantity: 0,
+                                                currentPrice: opportunity.requiredInvestment ?? 0,
+                                                purchasePrice: 0,
+                                                type: .stock
+                                            )]
+                                        )
+                                    } label: {
+                                        Text("Open Trading App")
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding()
+                                            .background(Color.blue)
+                                            .cornerRadius(10)
+                                    }
+                                    .padding(.horizontal, 0)
+                                    .padding(.top, 4)
+                                    
+                                default:
+                                    EmptyView()
+                                }
+                            } else if let status = message.opportunityStatus {
+                                // Show status text with more prominent styling
+                                Text(status == .accepted ? "Accepted ✓" : "Rejected ×")
+                                    .font(.headline)
+                                    .foregroundColor(status == .accepted ? .green : .red)
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 16)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(status == .accepted ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                                    )
+                                    .padding(.top, 4)
+                            }
+                        }
+                    }
+                    
+                    // Timestamp at bottom
+                    Text(formatTimestamp(message.timestamp))
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .hidden()
+                }
             }
             .frame(maxWidth: .infinity, alignment: isUserMessage ? .trailing : .leading)
+            .padding(.trailing, isUserMessage ? 12 : 0)
             
             if isUserMessage {
                 // Profile image for user messages
@@ -127,7 +152,8 @@ struct MessageBubble: View {
             }
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        // Add large spacing only after broker's follow-up (which is a response message from the broker)
+        .padding(.bottom, message.opportunityId != nil && message.id != message.opportunityId && !isUserMessage ? 60 : 4)
     }
     
     private func formatTimestamp(_ date: Date) -> String {
@@ -222,7 +248,8 @@ struct MessageOpportunityView: View {
                 }
             }
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.vertical, 8)
         .background(Color.gray.opacity(0.1))
         .cornerRadius(12)
     }

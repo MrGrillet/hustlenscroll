@@ -26,20 +26,18 @@ struct ThreadMessageRow: View {
     }
     
     var body: some View {
-        VStack(spacing: 10) {
-            MessageBubble(message: Binding(
-                get: { message },
-                set: { newMessage in
-                    if let index = gameState.messages.firstIndex(where: { $0.id == newMessage.id }) {
-                        gameState.messages[index] = newMessage
-                    }
+        MessageBubble(message: Binding(
+            get: { message },
+            set: { newMessage in
+                if let index = gameState.messages.firstIndex(where: { $0.id == newMessage.id }) {
+                    gameState.messages[index] = newMessage
                 }
-            ))
-            .id(message.id)
-            .onAppear {
-                if !message.isRead {
-                    gameState.markMessageAsRead(message)
-                }
+            }
+        ))
+        .id(message.id)
+        .onAppear {
+            if !message.isRead {
+                gameState.markMessageAsRead(message)
             }
         }
     }
@@ -96,12 +94,41 @@ struct MessageThreadView: View {
     }
     
     var messages: [Message] {
+        // Get all messages for this thread in their original order
+        let threadMessages = thread.messageIds.compactMap { id in
+            gameState.messages.first { $0.id == id }
+        }
+        
+        // Group messages by their opportunity
         var result: [Message] = []
-        for id in thread.messageIds {
-            if let message = findMessage(for: id) {
+        var processedIds = Set<UUID>()
+        
+        // Process messages in their original order
+        for message in threadMessages {
+            // Skip if we've already processed this message
+            if processedIds.contains(message.id) {
+                continue
+            }
+            
+            // If this is an opportunity message or a regular message
+            if message.id == message.opportunityId || message.opportunityId == nil {
                 result.append(message)
+                processedIds.insert(message.id)
+                
+                // If it's an opportunity message, add its responses
+                if message.opportunity != nil {
+                    let responses = threadMessages
+                        .filter { $0.opportunityId == message.id && $0.id != message.id }
+                        .sorted { $0.timestamp < $1.timestamp }
+                    
+                    for response in responses {
+                        result.append(response)
+                        processedIds.insert(response.id)
+                    }
+                }
             }
         }
+        
         return result
     }
     
@@ -111,7 +138,7 @@ struct MessageThreadView: View {
                 VStack(spacing: 16) {
                     Spacer(minLength: 20)
                     
-                    LazyVStack(spacing: 16) {
+                    LazyVStack(spacing: 4) {
                         ForEach(messages, id: \.id) { message in
                             ThreadMessageRow(message: message) { opportunity in
                                 viewModel.selectedOpportunity = opportunity
