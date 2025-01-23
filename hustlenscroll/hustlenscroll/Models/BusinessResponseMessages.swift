@@ -30,10 +30,10 @@ struct BusinessResponseMessages {
     ]
     
     static let accountantConfirmations = [
-        "Just to confirm, the deal for {company} has been completed. Congratulations on your new venture!",
-        "Great news! The paperwork for {company} is all set. The business is now officially yours.",
-        "I've processed all the documentation for {company}. Everything is finalized and ready to go.",
-        "The acquisition of {company} is complete. All the necessary transfers have been processed."
+        "Just to confirm, the deal for {company} (ID: {id}) has been completed. Congratulations on your new venture!",
+        "Great news! The paperwork for {company} (ID: {id}) is all set. The business is now officially yours.",
+        "I've processed all the documentation for {company} (ID: {id}). Everything is finalized and ready to go.",
+        "The acquisition of {company} (ID: {id}) is complete. All the necessary transfers have been processed."
     ]
     
     static func getRandomMessage(_ messages: [String], replacements: [String: String] = [:]) -> String {

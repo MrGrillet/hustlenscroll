@@ -46,14 +46,33 @@ struct MessageBubble: View {
                                 msg.opportunityId == message.id && msg.id != message.id
                             }
                             
+                            // Check if opportunity has expired
+                            let isExpired = opportunity.expiryDate < Date()
+                            
                             if !hasResponses {
-                                switch opportunity.type {
-                                case .startup:
-                                    Button {
-                                        NotificationCenter.default.post(
-                                            name: NSNotification.Name("ShowBusinessPurchase"),
-                                            object: nil,
-                                            userInfo: ["opportunity": BusinessOpportunity(
+                                if isExpired {
+                                    // Show expired state
+                                    Text("Offer Expired")
+                                        .font(.headline)
+                                        .foregroundColor(.gray)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(10)
+                                        .padding(.horizontal, 0)
+                                        .padding(.top, 20)
+                                        .onAppear {
+                                            // Add expiry message if not already added
+                                            if !gameState.messages.contains(where: { $0.opportunityId == message.id && $0.content.contains("too late") }) {
+                                                gameState.handleOpportunityResponse(message: message, accepted: false, expired: true)
+                                            }
+                                        }
+                                } else {
+                                    switch opportunity.type {
+                                    case .startup:
+                                        Button {
+                                            // Create BusinessOpportunity from the Opportunity
+                                            let businessOpp = BusinessOpportunity(
                                                 title: opportunity.title,
                                                 description: opportunity.description,
                                                 source: .broker,
@@ -63,50 +82,61 @@ struct MessageBubble: View {
                                                 setupCost: opportunity.requiredInvestment ?? 0,
                                                 potentialSaleMultiple: 3.0,
                                                 revenueShare: opportunity.revenueShare ?? 100,
-                                                symbol: opportunity.title
-                                            )]
-                                        )
-                                    } label: {
-                                        Text("Review Accounts")
-                                            .font(.headline)
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .padding()
-                                            .background(Color.blue)
-                                            .cornerRadius(10)
-                                    }
-                                    .padding(.horizontal, 0)
-                                    .padding(.top, 4)
-                                    
-                                case .investment:
-                                    Button {
-                                        NotificationCenter.default.post(
-                                            name: NSNotification.Name("ShowInvestmentPurchase"),
-                                            object: nil,
-                                            userInfo: ["asset": Asset(
-                                                id: UUID(),
                                                 symbol: opportunity.title,
-                                                name: opportunity.title,
-                                                quantity: 0,
-                                                currentPrice: opportunity.requiredInvestment ?? 0,
-                                                purchasePrice: 0,
-                                                type: .stock
-                                            )]
-                                        )
-                                    } label: {
-                                        Text("Open Trading App")
-                                            .font(.headline)
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .padding()
-                                            .background(Color.blue)
-                                            .cornerRadius(10)
+                                                originalOpportunityId: opportunity.id
+                                            )
+                                            
+                                            // Update message status and add responses
+                                            gameState.handleOpportunityResponse(message: message, accepted: true)
+                                            
+                                            // Show business purchase view
+                                            NotificationCenter.default.post(
+                                                name: NSNotification.Name("ShowBusinessPurchase"),
+                                                object: nil,
+                                                userInfo: ["opportunity": businessOpp]
+                                            )
+                                        } label: {
+                                            Text("Review Accounts")
+                                                .font(.headline)
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding()
+                                                .background(Color.blue)
+                                                .cornerRadius(10)
+                                        }
+                                        .padding(.horizontal, 0)
+                                        .padding(.top, 20)
+                                        
+                                    case .investment:
+                                        Button {
+                                            NotificationCenter.default.post(
+                                                name: NSNotification.Name("ShowInvestmentPurchase"),
+                                                object: nil,
+                                                userInfo: ["asset": Asset(
+                                                    id: UUID(),
+                                                    symbol: opportunity.title,
+                                                    name: opportunity.title,
+                                                    quantity: 0,
+                                                    currentPrice: opportunity.requiredInvestment ?? 0,
+                                                    purchasePrice: 0,
+                                                    type: .stock
+                                                )]
+                                            )
+                                        } label: {
+                                            Text("Open Trading App")
+                                                .font(.headline)
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .padding()
+                                                .background(Color.blue)
+                                                .cornerRadius(10)
+                                        }
+                                        .padding(.horizontal, 0)
+                                        .padding(.top, 4)
+                                        
+                                    default:
+                                        EmptyView()
                                     }
-                                    .padding(.horizontal, 0)
-                                    .padding(.top, 4)
-                                    
-                                default:
-                                    EmptyView()
                                 }
                             } else if let status = message.opportunityStatus {
                                 // Show status text with more prominent styling
@@ -245,6 +275,26 @@ struct MessageOpportunityView: View {
                             .font(.subheadline)
                             .bold()
                     }
+                }
+                
+                // Add Company Reference (ID)
+                HStack {
+                    Text("Company Reference:")
+                        .font(.subheadline)
+                    Text(opportunity.id.uuidString.prefix(8))
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundColor(.gray)
+                }
+                
+                // Add Offer Expiry (Date)
+                HStack {
+                    Text("Offer Expires:")
+                        .font(.subheadline)
+                    Text(opportunity.expiryDate, style: .time)
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundColor(.gray)
                 }
             }
         }

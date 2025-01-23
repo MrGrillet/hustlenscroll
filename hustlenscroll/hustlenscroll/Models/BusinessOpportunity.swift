@@ -16,6 +16,7 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
     var currentExitMultiple: Double
     let symbol: String
     let socialPostContent: SocialPostContent?
+    let originalOpportunityId: UUID?
     
     struct SocialPostContent: Codable, Hashable {
         let defaultText: String
@@ -73,7 +74,8 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
         type: EventType = .opportunity,
         currentExitMultiple: Double? = nil,
         symbol: String,
-        socialPostContent: SocialPostContent? = nil
+        socialPostContent: SocialPostContent? = nil,
+        originalOpportunityId: UUID? = nil
     ) {
         self.id = id
         self.title = title
@@ -89,5 +91,6 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
         self.currentExitMultiple = currentExitMultiple ?? potentialSaleMultiple
         self.symbol = symbol
         self.socialPostContent = socialPostContent
+        self.originalOpportunityId = originalOpportunityId
     }
 } 

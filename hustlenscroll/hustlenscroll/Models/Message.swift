@@ -48,6 +48,7 @@ struct Message: Identifiable, Codable {
 }
 
 struct Opportunity: Codable {
+    let id: UUID
     let title: String
     let description: String
     let type: OpportunityType
@@ -55,10 +56,33 @@ struct Opportunity: Codable {
     let monthlyRevenue: Double?
     let monthlyExpenses: Double?
     let revenueShare: Double?
+    let expiryDate: Date
     
     enum OpportunityType: String, Codable {
         case startup
         case freelance
         case investment
+    }
+    
+    init(
+        id: UUID = UUID(),
+        title: String,
+        description: String,
+        type: OpportunityType,
+        requiredInvestment: Double?,
+        monthlyRevenue: Double?,
+        monthlyExpenses: Double?,
+        revenueShare: Double?,
+        expiryDate: Date = Date().addingTimeInterval(300)  // 5 minutes (300 seconds) from now
+    ) {
+        self.id = id
+        self.title = title
+        self.description = description
+        self.type = type
+        self.requiredInvestment = requiredInvestment
+        self.monthlyRevenue = monthlyRevenue
+        self.monthlyExpenses = monthlyExpenses
+        self.revenueShare = revenueShare
+        self.expiryDate = expiryDate
     }
 } 

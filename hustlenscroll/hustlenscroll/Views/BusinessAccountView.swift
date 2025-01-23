@@ -21,6 +21,13 @@ struct BusinessAccountView: View {
                         Text(business.description)
                             .font(.body)
                             .foregroundColor(.gray)
+                        
+                        if let opportunityId = business.originalOpportunityId {
+                            Divider()
+                                .padding(.vertical, 5)
+                            
+                            InfoRow(title: "Company Reference", value: String(opportunityId.uuidString.prefix(8)))
+                        }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)

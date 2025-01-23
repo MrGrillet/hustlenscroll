@@ -58,7 +58,24 @@ struct OpportunityDetailSheet: View {
                         }
                         
                         Button(action: {
-                            gameState.acceptOpportunity(opportunity)
+                            // Create a message for the opportunity
+                            let message = Message(
+                                senderId: "broker",
+                                senderName: "Business Broker",
+                                senderRole: "Business Broker",
+                                timestamp: Date(),
+                                content: "I have an exciting business opportunity for you.",
+                                opportunity: Opportunity(
+                                    title: opportunity.title,
+                                    description: opportunity.description,
+                                    type: .startup,
+                                    requiredInvestment: opportunity.setupCost,
+                                    monthlyRevenue: opportunity.monthlyRevenue,
+                                    monthlyExpenses: opportunity.monthlyExpenses,
+                                    revenueShare: opportunity.revenueShare
+                                )
+                            )
+                            gameState.handleOpportunityResponse(message: message, accepted: true)
                             dismiss()
                         }) {
                             Text("Accept Opportunity")

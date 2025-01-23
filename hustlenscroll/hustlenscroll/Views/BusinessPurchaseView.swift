@@ -210,15 +210,6 @@ struct BusinessPurchaseView: View {
     }
     
     private func handlePurchase(using method: PaymentMethod) {
-        print("\n💼 BUSINESS PURCHASE LOG:")
-        print("----------------------------------------")
-        print("Initial State:")
-        print("  - Active Businesses Count: \(gameState.activeBusinesses.count)")
-        print("  - Business to Purchase: \(opportunity.title)")
-        print("  - Setup Cost: $\(opportunity.setupCost)")
-        print("  - Monthly Revenue: $\(opportunity.monthlyRevenue)")
-        print("  - Monthly Expenses: $\(opportunity.monthlyExpenses)")
-        
         // Add user's acceptance message
         let userMessage = Message(
             senderId: opportunity.source == .partner ? "broker" : "founder",
@@ -228,52 +219,26 @@ struct BusinessPurchaseView: View {
             content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages),
             isRead: true
         )
-        print("\nAdding User Message:")
-        print("  - Sender: \(userMessage.senderName)")
-        print("  - Role: \(userMessage.senderRole)")
         gameState.addMessageToThread(senderId: userMessage.senderId, message: userMessage)
         
         // Process payment
-        print("\nProcessing Payment:")
         switch method {
         case .bankAccount:
-            print("  - Method: Bank Account")
-            print("  - Previous Balance: $\(gameState.currentPlayer.bankBalance)")
             gameState.currentPlayer.bankBalance -= opportunity.setupCost
-            print("  - New Balance: $\(gameState.currentPlayer.bankBalance)")
         case .savings:
-            print("  - Method: Savings Account")
-            print("  - Previous Balance: $\(gameState.currentPlayer.savingsBalance)")
             gameState.currentPlayer.savingsBalance -= opportunity.setupCost
-            print("  - New Balance: $\(gameState.currentPlayer.savingsBalance)")
         case .familyTrust:
-            print("  - Method: Family Trust")
-            print("  - Previous Balance: $\(gameState.familyTrustBalance)")
             gameState.familyTrustBalance -= opportunity.setupCost
-            print("  - New Balance: $\(gameState.familyTrustBalance)")
         case .credit:
-            print("  - Method: Credit Card")
-            print("  - Previous Balance: $\(gameState.creditCardBalance)")
             gameState.creditCardBalance += opportunity.setupCost
-            print("  - New Balance: $\(gameState.creditCardBalance)")
         case .platinumCard:
-            print("  - Method: Platinum Card")
-            print("  - Previous Balance: $\(gameState.platinumCardBalance)")
             gameState.platinumCardBalance += opportunity.setupCost
-            print("  - New Balance: $\(gameState.platinumCardBalance)")
         case .blackCard:
-            print("  - Method: Black Card")
-            print("  - Previous Balance: $\(gameState.blackCardBalance)")
             gameState.blackCardBalance += opportunity.setupCost
-            print("  - New Balance: $\(gameState.blackCardBalance)")
         }
         
         // Add the business
-        print("\nAdding Business to Portfolio:")
-        print("  - Active Businesses Before: \(gameState.activeBusinesses.count)")
         gameState.acceptOpportunity(opportunity)
-        print("  - Active Businesses After: \(gameState.activeBusinesses.count)")
-        print("  - Business Added Successfully: \(gameState.activeBusinesses.contains { $0.title == opportunity.title })")
         
         // Add accountant's confirmation
         let accountantMessage = Message(
@@ -283,19 +248,17 @@ struct BusinessPurchaseView: View {
             timestamp: Date().addingTimeInterval(60),
             content: BusinessResponseMessages.getRandomMessage(
                 BusinessResponseMessages.accountantConfirmations,
-                replacements: ["company": opportunity.title]
+                replacements: [
+                    "company": opportunity.title,
+                    "id": String((opportunity.originalOpportunityId ?? opportunity.id).uuidString.prefix(8))
+                ]
             ),
             isRead: false
         )
-        print("\nAdding Accountant Confirmation:")
-        print("  - Message: \(accountantMessage.content)")
         gameState.addMessageToThread(senderId: accountantMessage.senderId, message: accountantMessage)
         
         // Save state and update UI
-        print("\nSaving State and Updating UI:")
-        print("  - Saving game state...")
         gameState.saveState()
-        print("  - Notifying UI of changes...")
         gameState.objectWillChange.send()
         
         // Force UI refresh
@@ -303,12 +266,6 @@ struct BusinessPurchaseView: View {
             gameState.objectWillChange.send()
         }
         
-        print("\nFinal State Check:")
-        print("  - Active Businesses Count: \(gameState.activeBusinesses.count)")
-        print("  - Business Present: \(gameState.activeBusinesses.contains { $0.title == opportunity.title })")
-        print("----------------------------------------")
-        
-        print("Purchase complete, dismissing view")
         dismiss()
     }
     

@@ -600,6 +600,14 @@ struct BusinessCardDetails: View {
             Divider()
                 .padding(.vertical, 5)
             
+            InfoRow(title: "Purchase Price", value: String(format: "$%.2f", business.setupCost))
+            if let opportunityId = business.originalOpportunityId {
+                InfoRow(title: "Opportunity Reference", value: String(opportunityId.uuidString.prefix(8)))
+            }
+            
+            Divider()
+                .padding(.vertical, 5)
+            
             InfoRow(title: "Current Exit Multiple", value: String(format: "%.1fx", business.currentExitMultiple))
             InfoRow(title: "Current Exit Value", value: String(format: "$%.2f", business.currentExitValue))
         }

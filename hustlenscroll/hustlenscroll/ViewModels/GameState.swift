@@ -142,6 +142,9 @@ class GameState: ObservableObject {
             self.posts = decoded.posts
             self.userPosts = decoded.userPosts
             self.profileImage = decoded.profileImage
+            self.blackCardBalance = decoded.blackCardBalance
+            self.platinumCardBalance = decoded.platinumCardBalance
+            self.familyTrustBalance = decoded.familyTrustBalance
             
             // Clean up any duplicate messages
             removeDuplicateMessages()
@@ -676,51 +679,19 @@ class GameState: ObservableObject {
     }
     
     func acceptOpportunity(_ opportunity: BusinessOpportunity) {
-        print("\n💼 BUSINESS ACCEPTANCE LOG:")
-        print("----------------------------------------")
-        print("Initial State:")
-        print("  - Active Businesses Count: \(activeBusinesses.count)")
-        print("  - Business: \(opportunity.title)")
-        
         // Process the opportunity acceptance
         activeBusinesses.append(opportunity)
         currentPlayer.activeBusinesses.append(opportunity.id.uuidString)
         hasStartup = true  // Set hasStartup to true when a business is added
         
-        print("\nAdding Business to Portfolio:")
-        print("  - Active Businesses Before: \(activeBusinesses.count - 1)")
-        print("  - Active Businesses After: \(activeBusinesses.count)")
-        
         // Record the transaction
         let transaction = Transaction(
             date: Date(),
-            description: "Started \(opportunity.title)",
+            description: "Started \(opportunity.title) (ID: \(opportunity.id.uuidString.prefix(8)))",
             amount: opportunity.setupCost,
             isIncome: false
         )
         transactions.append(transaction)
-        
-        // Create confirmation message with unique ID
-        let confirmationMessage = Message(
-            id: UUID(),  // Ensure unique ID
-            senderId: "accountant",
-            senderName: "Steven Johnson",
-            senderRole: "Accountant",
-            timestamp: Date(),
-            content: "Great news! The paperwork for \(opportunity.title) is all set. The business is now officially yours.",
-            isRead: false
-        )
-        
-        print("\nAdding Confirmation Message:")
-        print("  - Message ID: \(confirmationMessage.id)")
-        print("  - Content: \(confirmationMessage.content)")
-        
-        messages.append(confirmationMessage)
-        
-        print("\nFinal State:")
-        print("  - Active Businesses Count: \(activeBusinesses.count)")
-        print("  - Business Present: \(activeBusinesses.contains(where: { $0.id == opportunity.id }))")
-        print("----------------------------------------")
         
         saveState()
         objectWillChange.send()
@@ -756,13 +727,13 @@ class GameState: ObservableObject {
     }
     
     // Update the handleOpportunityResponse method to use the thread
-    func handleOpportunityResponse(message: Message, accepted: Bool) {
+    func handleOpportunityResponse(message: Message, accepted: Bool, expired: Bool = false) {
         print("\n💬 OPPORTUNITY RESPONSE LOG:")
         print("----------------------------------------")
         print("Initial Message Details:")
         print("  - Original Message ID: \(message.id)")
         print("  - Original Sender: \(message.senderName)")
-        print("  - Action: \(accepted ? "Accepting" : "Rejecting") opportunity")
+        print("  - Action: \(accepted ? "Accepting" : expired ? "Expired" : "Rejecting") opportunity")
         
         // Update the original message's status first
         if let index = messages.firstIndex(where: { $0.id == message.id }) {
@@ -771,69 +742,65 @@ class GameState: ObservableObject {
             print("  - Status changed to: \(accepted ? "Accepted" : "Rejected")")
         }
         
-        // Create user's response message with unique ID
-        let userResponseId = UUID()
-        let userMessage = Message(
-            id: userResponseId,
-            senderId: message.senderId,  // Keep original sender's ID for thread
-            senderName: currentPlayer.name,
-            senderRole: currentPlayer.role,
-            timestamp: Date(),
-            content: accepted ? 
-                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages) :
-                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
-            isRead: true,
-            opportunityId: message.id  // Link to original message
-        )
-        messages.append(userMessage)
-        print("\nAdded User Response Message:")
-        print("  - Message ID: \(userResponseId)")
-        print("  - Content: \(userMessage.content)")
+        // Use the original message's timestamp as the base
+        let baseTimestamp = message.timestamp
         
-        // Create broker's response with unique ID
-        let brokerResponseId = UUID()
-        let brokerMessage = Message(
-            id: brokerResponseId,
-            senderId: message.senderId,  // Keep original sender's ID for thread
-            senderName: message.senderName,
-            senderRole: message.senderRole,
-            timestamp: Date().addingTimeInterval(30),
-            content: accepted ?
-                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerFollowUpMessages) :
-                BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
-            isRead: false,
-            opportunityId: message.id  // Link to original message
-        )
-        messages.append(brokerMessage)
-        print("\nAdded Broker Response Message:")
-        print("  - Message ID: \(brokerResponseId)")
-        print("  - Content: \(brokerMessage.content)")
-        
-        if accepted {
-            // Add accountant's confirmation with unique ID
-            let accountantResponseId = UUID()
-            let accountantMessage = Message(
-                id: accountantResponseId,
-                senderId: "accountant",
-                senderName: "Steven Johnson",
-                senderRole: "Accountant",
-                timestamp: Date().addingTimeInterval(60),
-                content: BusinessResponseMessages.getRandomMessage(
-                    BusinessResponseMessages.accountantConfirmations,
-                    replacements: ["company": message.opportunity?.title ?? ""]
-                ),
+        if expired {
+            // For expired opportunities, only add broker's message
+            let brokerResponseId = UUID()
+            let brokerMessage = Message(
+                id: brokerResponseId,
+                senderId: message.senderId,
+                senderName: message.senderName,
+                senderRole: message.senderRole,
+                timestamp: baseTimestamp.addingTimeInterval(120),
+                content: "I'm sorry, but you're too late. Someone has submitted an offer and it was accepted.",
+                isRead: false,
+                opportunityId: message.id
+            )
+            messages.append(brokerMessage)
+            print("\nAdded Expiry Message:")
+            print("  - Message ID: \(brokerResponseId)")
+            print("  - Content: \(brokerMessage.content)")
+        } else {
+            // Create user's response message with unique ID (1 minute after original)
+            let userResponseId = UUID()
+            let userMessage = Message(
+                id: userResponseId,
+                senderId: message.senderId,  // Keep original sender's ID for thread
+                senderName: currentPlayer.name,
+                senderRole: currentPlayer.role,
+                timestamp: baseTimestamp.addingTimeInterval(60),  // 1 minute after original
+                content: accepted ? 
+                    BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages) :
+                    BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
+                isRead: true,
+                opportunityId: message.id  // Link to original message
+            )
+            messages.append(userMessage)
+            print("\nAdded User Response Message:")
+            print("  - Message ID: \(userResponseId)")
+            print("  - Content: \(userMessage.content)")
+            
+            // Create broker's response with unique ID (2 minutes after original)
+            let brokerResponseId = UUID()
+            let brokerMessage = Message(
+                id: brokerResponseId,
+                senderId: message.senderId,  // Keep original sender's ID for thread
+                senderName: message.senderName,
+                senderRole: message.senderRole,
+                timestamp: baseTimestamp.addingTimeInterval(120),  // 2 minutes after original
+                content: accepted ?
+                    BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerFollowUpMessages) :
+                    BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
                 isRead: false,
                 opportunityId: message.id  // Link to original message
             )
-            messages.append(accountantMessage)
-            print("\nAdded Accountant Confirmation Message:")
-            print("  - Message ID: \(accountantResponseId)")
-            print("  - Content: \(accountantMessage.content)")
+            messages.append(brokerMessage)
+            print("\nAdded Broker Response Message:")
+            print("  - Message ID: \(brokerResponseId)")
+            print("  - Content: \(brokerMessage.content)")
         }
-        
-        print("\nFinal State:")
-        print("  - Total messages in thread: \(messages.filter { $0.opportunityId == message.id }.count)")
-        print("----------------------------------------")
         
         // Force UI update and save state
         objectWillChange.send()
@@ -1422,10 +1389,10 @@ class GameState: ObservableObject {
                 // Create market update for the startup
                 let update = MarketUpdate.Update(
                     symbol: business.symbol,
-                    newPrice: 0.0,
+                    newPrice: 0.0,  // Use 0.0 instead of nil for newPrice
                     newMultiple: business.currentExitMultiple,
                     message: "🚀 Hot Exit Opportunity: \(business.title) valuation soars to $\(Int(business.currentExitValue)) (\(String(format: "%.1fx", business.currentExitMultiple)) annual cash flow)",
-                    type: .startup
+                    type: .startup  // Use .startup instead of .business
                 )
                 
                 let marketUpdate = MarketUpdate(
@@ -1441,8 +1408,6 @@ class GameState: ObservableObject {
                     content: update.message,
                     timestamp: Date(),
                     isSponsored: true,
-                    linkedOpportunity: nil,
-                    linkedInvestment: nil,
                     linkedMarketUpdate: marketUpdate
                 )
                 posts.insert(post, at: 0)
@@ -1451,11 +1416,35 @@ class GameState: ObservableObject {
         }
     }
     
+    private func generateBusinessUpdateReason(multiplierChange: Double) -> String {
+        let positiveReasons = [
+            "strong market growth",
+            "increased customer demand",
+            "successful product launch",
+            "new partnership announcement",
+            "improved profit margins",
+            "industry recognition",
+            "positive market sentiment"
+        ]
+        
+        let negativeReasons = [
+            "market competition",
+            "sector slowdown",
+            "temporary setback",
+            "market uncertainty",
+            "industry challenges",
+            "regulatory changes",
+            "shifting market conditions"
+        ]
+        
+        let reasons = multiplierChange >= 0 ? positiveReasons : negativeReasons
+        return reasons.randomElement() ?? (multiplierChange >= 0 ? "positive market conditions" : "market conditions")
+    }
+    
     func sellBusiness(_ business: BusinessOpportunity) {
-        // Calculate sale proceeds
         let saleProceeds = business.currentExitValue * (business.revenueShare / 100.0)
         
-        // Add proceeds to Family Trust if player is Angel Investor, otherwise to checking account
+        // Add proceeds to Family Trust or bank account based on role
         if currentPlayer.role == "Owner / Angel Investor" {
             familyTrustBalance += saleProceeds
         } else {
@@ -1483,28 +1472,21 @@ class GameState: ObservableObject {
         )
         addPost(post)
         
+        // Save state after modifying balances
+        saveState()
+        objectWillChange.send()
+        
         // Add confirmation message
         let confirmationMessage = Message(
             senderId: "exit_advisor",
-            senderName: "Sarah Chen",
-            senderRole: "M&A Advisor",
+            senderName: "Michael Chen",
+            senderRole: "Exit Advisor",
             timestamp: Date(),
-            content: """
-            🎉 Congratulations! Sale of \(business.title) completed!
-            
-            Sale Price: $\(Int(saleProceeds))
-            Exit Multiple: \(String(format: "%.1f", business.currentExitMultiple)) annual cash flow
-            
-            The funds have been deposited into your \(currentPlayer.role == "Owner / Angel Investor" ? "Family Trust" : "Checking Account").
-            """,
+            content: "Congratulations on the successful sale of \(business.title)! The proceeds of $\(Int(saleProceeds)) have been deposited into your \(currentPlayer.role == "Owner / Angel Investor" ? "Family Trust" : "Checking Account").",
             isRead: false
         )
         messages.append(confirmationMessage)
         
-        // Reset exit opportunity
-        showingExitOpportunity = nil
-        
-        // Update state
         saveState()
         objectWillChange.send()
     }
@@ -1939,75 +1921,73 @@ class GameState: ObservableObject {
         // Create market update
         let update = MarketUpdate.Update(
             symbol: business.symbol,
-            newPrice: 0.0,
+            newPrice: 0.0,  // Use 0.0 instead of nil
             newMultiple: newMultiple,
-            message: generateBusinessUpdateMessage(business: business, newMultiple: newMultiple, multiplierChange: multiplierChange),
-            type: .startup
+            message: generateBusinessUpdateMessage(business: business, newMultiple: newMultiple),
+            type: .startup  // Use .startup instead of .business
         )
         
         let marketUpdate = MarketUpdate(
-            title: "Business Valuation Update",
-            description: "Latest valuation update for \(business.title)",
+            title: "Business Market Update",
+            description: "Latest valuations for \(business.title)",
             updates: [update]
         )
         
-        // Create and add the market update post
+        // Update the business's exit multiple
+        if let index = activeBusinesses.firstIndex(where: { $0.id == business.id }) {
+            activeBusinesses[index].currentExitMultiple = newMultiple
+        }
+        
+        // Save state after modifying business values
+        saveState()
+        objectWillChange.send()
+        
+        // Create and add the post
         let post = Post(
-            author: "Sarah Chen",
-            role: "M&A Advisor",
-            content: update.message,
+            author: "Market Watch",
+            role: "Market Analysis",
+            content: "Business Market Update",
             timestamp: Date(),
             isSponsored: true,
-            linkedOpportunity: nil,
-            linkedInvestment: nil,
             linkedMarketUpdate: marketUpdate
         )
-        posts.insert(post, at: 0)
-        
-        // Update the business's multiple
-        if let index = activeBusinesses.firstIndex(where: { $0.id == business.id }) {
-            var updatedBusiness = business
-            updatedBusiness.currentExitMultiple = newMultiple
-            activeBusinesses[index] = updatedBusiness
-            
-            // Check for exit opportunity if multiple is high enough
-            if newMultiple >= business.potentialSaleMultiple * 1.2 {
-                checkStartupExitOpportunities()
-            }
-        }
+        addPost(post)
     }
     
-    private func generateBusinessUpdateMessage(business: BusinessOpportunity, newMultiple: Double, multiplierChange: Double) -> String {
-        let valueChange = multiplierChange >= 0 ? "rises" : "drops"
-        let emoji = multiplierChange >= 0 ? "📈" : "📉"
-        let reason = generateBusinessUpdateReason(business: business, isPositive: multiplierChange >= 0)
+    private func generateBusinessUpdateMessage(business: BusinessOpportunity, newMultiple: Double) -> String {
+        let valueChange = newMultiple >= business.currentExitMultiple ? "rises" : "drops"
+        let emoji = newMultiple >= business.currentExitMultiple ? "📈" : "📉"
+        let reason = generateBusinessUpdateReason(multiplierChange: (newMultiple - business.currentExitMultiple) / business.currentExitMultiple)
         
         return "\(business.title) valuation \(valueChange) to \(String(format: "%.1f", newMultiple))x annual cash flow due to \(reason) \(emoji)"
     }
     
-    private func generateBusinessUpdateReason(business: BusinessOpportunity, isPositive: Bool) -> String {
-        let positiveReasons = [
-            "strong market growth",
-            "increased customer demand",
-            "successful product launch",
-            "new partnership announcement",
-            "improved profit margins",
-            "industry recognition",
-            "positive market sentiment"
-        ]
+    func payCredit(amount: Double, cardType: AccountType) {
+        switch cardType {
+        case .creditCard:
+            guard amount <= creditCardBalance else { return }
+            creditCardBalance -= amount
+        case .blackCard:
+            guard amount <= blackCardBalance else { return }
+            blackCardBalance -= amount
+        case .platinumCard:
+            guard amount <= platinumCardBalance else { return }
+            platinumCardBalance -= amount
+        default:
+            return
+        }
         
-        let negativeReasons = [
-            "market competition",
-            "sector slowdown",
-            "temporary setback",
-            "market uncertainty",
-            "industry challenges",
-            "regulatory changes",
-            "shifting market conditions"
-        ]
+        currentPlayer.bankBalance -= amount
         
-        let reasons = isPositive ? positiveReasons : negativeReasons
-        return reasons.randomElement() ?? (isPositive ? "positive market conditions" : "market conditions")
+        transactions.append(Transaction(
+            date: Date(),
+            description: "Payment to \(cardType.title)",
+            amount: amount,
+            isIncome: false
+        ))
+        
+        saveState()
+        objectWillChange.send()
     }
 }
 

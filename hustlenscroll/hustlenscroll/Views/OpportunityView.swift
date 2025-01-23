@@ -58,7 +58,24 @@ struct OpportunityView: View {
                         }
                         
                         Button(action: {
-                            gameState.acceptOpportunity(opportunity)
+                            // Create a message for the opportunity
+                            let message = Message(
+                                senderId: post.author,
+                                senderName: post.author,
+                                senderRole: post.role,
+                                timestamp: Date(),
+                                content: post.content,
+                                opportunity: Opportunity(
+                                    title: opportunity.title,
+                                    description: opportunity.description,
+                                    type: .startup,
+                                    requiredInvestment: opportunity.setupCost,
+                                    monthlyRevenue: opportunity.monthlyRevenue,
+                                    monthlyExpenses: opportunity.monthlyExpenses,
+                                    revenueShare: opportunity.revenueShare
+                                )
+                            )
+                            gameState.handleOpportunityResponse(message: message, accepted: true)
                             dismiss()
                         }) {
                             Text("Accept Opportunity")
