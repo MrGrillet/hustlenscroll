@@ -921,31 +921,39 @@ class GameState: ObservableObject {
     
     // Add these functions to GameState
     func advanceDay() {
-        let dayType = DayType.random()
+        // Clear existing posts
+        posts = []
         
+        // Always generate a market update (alternating between crypto and equity)
+        if Bool.random() {
+            handleCryptoUpdate()
+        } else {
+            handleEquityUpdate()
+        }
+        
+        // Always generate an opportunity (alternating between small and large)
+        generateOpportunity(size: Bool.random() ? .small : .large)
+        
+        // Add a smaller number of filler posts (3-5 posts)
+        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 3...5))
+        posts.append(contentsOf: newPosts)
+        
+        // Handle other daily events
+        let dayType = DayType.random()
         switch dayType {
-        case .opportunity(let size):
-            generateOpportunity(size: size)
         case .payday:
             handlePayday()
         case .expense:
             generateUnexpectedExpense()
         case .baby:
             handleBabyEvent()
-        case .cryptoUpdate:
-            handleCryptoUpdate()
-        case .equityUpdate:
-            handleEquityUpdate()
         case .cryptoDM:
             handleCryptoDM()
         case .startupExit:
             checkStartupExitOpportunities()
+        default:
+            break
         }
-        
-        // Clear existing posts and add new ones (10-15 posts)
-        posts = []
-        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 10...15))
-        posts = newPosts
         
         saveState()
         objectWillChange.send()
