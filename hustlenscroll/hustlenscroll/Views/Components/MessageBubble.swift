@@ -67,7 +67,7 @@ struct MessageBubble: View {
                                             )]
                                         )
                                     } label: {
-                                        Text("Review Bank Accounts")
+                                        Text("Review Accounts")
                                             .font(.headline)
                                             .foregroundColor(.white)
                                             .frame(maxWidth: .infinity)
