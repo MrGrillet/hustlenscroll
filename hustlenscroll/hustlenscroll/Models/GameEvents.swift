@@ -239,14 +239,14 @@ struct PredefinedOpportunity {
         (
             BusinessOpportunity(
                 title: "AI-Powered Health Tech Startup",
-                description: "Early-stage startup developing AI diagnostics platform for healthcare providers. Looking for technical co-founder with $75,000 investment for 20% equity.",
-                source: .investor,
+                description: "Revolutionary AI-powered health diagnostics platform. Seeking $500,000 investment for 40% equity.",
+                source: .partner,
                 opportunityType: .startup,
-                monthlyRevenue: 12000,
-                monthlyExpenses: 4000,
-                setupCost: 75000,
-                potentialSaleMultiple: 4.0,
-                revenueShare: 20.0,
+                monthlyRevenue: 50000,
+                monthlyExpenses: 30000,
+                setupCost: 500000,
+                potentialSaleMultiple: 4.5,
+                revenueShare: 40.0,
                 symbol: "AI Health Tech"
             ),
             Message(
@@ -257,12 +257,12 @@ struct PredefinedOpportunity {
                 content: "Hi! I'm leading the seed round for an exciting health tech startup. Your background would be perfect for the technical co-founder role.",
                 opportunity: Opportunity(
                     title: "AI-Powered Health Tech Startup",
-                    description: "Early-stage startup developing AI diagnostics platform for healthcare providers. Looking for technical co-founder with $75,000 investment for 20% equity.",
+                    description: "Revolutionary AI-powered health diagnostics platform. Seeking $500,000 investment for 40% equity.",
                     type: .startup,
-                    requiredInvestment: 75000,
-                    monthlyRevenue: 12000,
-                    monthlyExpenses: 4000,
-                    revenueShare: 20.0
+                    requiredInvestment: 500000,
+                    monthlyRevenue: 50000,
+                    monthlyExpenses: 30000,
+                    revenueShare: 40.0
                 )
             )
         ),
@@ -271,14 +271,14 @@ struct PredefinedOpportunity {
         (
             BusinessOpportunity(
                 title: "Event Booking Platform",
-                description: "White-label event booking software for small venues. Established customer base with steady revenue.",
-                source: .customer,
+                description: "Fast-growing event booking platform. $250,000 investment for 25% equity.",
+                source: .broker,
                 opportunityType: .startup,
-                monthlyRevenue: 3500,
-                monthlyExpenses: 800,
-                setupCost: 10000,
-                potentialSaleMultiple: 2.0,
-                revenueShare: 40.0,
+                monthlyRevenue: 35000,
+                monthlyExpenses: 20000,
+                setupCost: 250000,
+                potentialSaleMultiple: 3.8,
+                revenueShare: 25.0,
                 symbol: "Event Platform"
             ),
             Message(
@@ -289,12 +289,12 @@ struct PredefinedOpportunity {
                 content: "Looking for a technical partner to help scale our event booking platform. Great opportunity for passive income.",
                 opportunity: Opportunity(
                     title: "Event Booking Platform",
-                    description: "White-label event booking software for small venues. Established customer base with steady revenue.",
+                    description: "Fast-growing event booking platform. $250,000 investment for 25% equity.",
                     type: .startup,
-                    requiredInvestment: 10000,
-                    monthlyRevenue: 3500,
-                    monthlyExpenses: 800,
-                    revenueShare: 40.0
+                    requiredInvestment: 250000,
+                    monthlyRevenue: 35000,
+                    monthlyExpenses: 20000,
+                    revenueShare: 25.0
                 )
             )
         ),
@@ -302,14 +302,14 @@ struct PredefinedOpportunity {
         // Big Deal - E-commerce Acquisition
         (
             BusinessOpportunity(
-                title: "Profitable E-commerce Store",
-                description: "Established e-commerce business selling premium pet supplies. Owner looking to exit. $150,000 investment for 100% ownership.",
-                source: .competitor,
-                opportunityType: .acquisition,
+                title: "E-commerce Store",
+                description: "Profitable e-commerce business selling premium pet supplies. Owner looking to exit. $150,000 investment for 100% ownership.",
+                source: .broker,
+                opportunityType: .startup,
                 monthlyRevenue: 25000,
                 monthlyExpenses: 15000,
                 setupCost: 150000,
-                potentialSaleMultiple: 3.0,
+                potentialSaleMultiple: 3.2,
                 revenueShare: 100.0,
                 symbol: "E-commerce"
             ),
@@ -320,8 +320,8 @@ struct PredefinedOpportunity {
                 timestamp: Date(),
                 content: "I have a profitable e-commerce business for sale. The owner is retiring and looking for a quick exit. Great opportunity for someone with technical background to optimize and scale.",
                 opportunity: Opportunity(
-                    title: "Profitable E-commerce Store",
-                    description: "Established e-commerce business selling premium pet supplies. Owner looking to exit. $150,000 investment for 100% ownership.",
+                    title: "E-commerce Store",
+                    description: "Profitable e-commerce business selling premium pet supplies. Owner looking to exit. $150,000 investment for 100% ownership.",
                     type: .startup,
                     requiredInvestment: 150000,
                     monthlyRevenue: 25000,
@@ -341,7 +341,7 @@ struct PredefinedOpportunity {
                 monthlyRevenue: 5000,
                 monthlyExpenses: 1000,
                 setupCost: 25000,
-                potentialSaleMultiple: 3.5,
+                potentialSaleMultiple: 4.2,
                 revenueShare: 30.0,
                 symbol: "Fitness App"
             ),
@@ -373,7 +373,7 @@ struct PredefinedOpportunity {
                 monthlyRevenue: 1000,
                 monthlyExpenses: 200,
                 setupCost: 5000,
-                potentialSaleMultiple: 2.5,
+                potentialSaleMultiple: 3.5,
                 revenueShare: 50.0,
                 symbol: "Dev Tool"
             ),

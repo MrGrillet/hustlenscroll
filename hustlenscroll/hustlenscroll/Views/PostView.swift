@@ -640,13 +640,23 @@ struct SellButton: View {
                 gameState.currentPlayer.bankBalance += saleValue
             }
             
-            // Record transaction
+            // Record transaction with appropriate account type in description
             gameState.transactions.append(Transaction(
                 date: Date(),
-                description: "Sold \(business.title)",
+                description: "Sold \(business.title)" + (gameState.currentPlayer.role == "Owner / Angel Investor" ? " (to Family Trust)" : " (to Checking Account)"),
                 amount: saleValue,
                 isIncome: true
             ))
+            
+            // Create a post about the sale
+            let post = Post(
+                author: gameState.currentPlayer.name,
+                role: gameState.currentPlayer.role,
+                content: "Just sold \(business.title) for $\(Int(saleValue)) at \(String(format: "%.1f", multiple))x annual cash flow! 🎉💰",
+                timestamp: Date(),
+                isSponsored: false
+            )
+            gameState.addPost(post)
             
             if let index = gameState.activeBusinesses.firstIndex(where: { $0.id == business.id }) {
                 gameState.activeBusinesses.remove(at: index)
@@ -972,28 +982,6 @@ struct HoldingsView: View {
     }
 }
 
-struct BankAccountsView: View {
-    let bankBalance: Double
-    let savingsBalance: Double
-    @EnvironmentObject var gameState: GameState
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Bank Accounts")
-                .font(.headline)
-                .foregroundColor(.gray)
-            
-            InfoRow(title: "Checking", value: String(format: "$%.2f", bankBalance))
-            InfoRow(title: "Savings", value: String(format: "$%.2f", savingsBalance))
-            InfoRow(title: "Credit Card", value: String(format: "$%.2f", gameState.creditCardBalance))
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
-    }
-}
-
-// MARK: - Trading View
 struct TradingView: View {
     let post: Post
     @Binding var activeSheet: PostView.ActiveSheet?
@@ -1028,11 +1016,6 @@ struct TradingView: View {
                                     activeSheet = nil
                                 }
                             }
-                        )
-                        
-                        BankAccountsView(
-                            bankBalance: gameState.currentPlayer.bankBalance,
-                            savingsBalance: gameState.currentPlayer.savingsBalance
                         )
                     }
                     .padding()

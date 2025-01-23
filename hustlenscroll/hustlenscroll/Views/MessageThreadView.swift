@@ -151,9 +151,30 @@ struct MessageThreadView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $viewModel.showingInvestmentPurchase) {
             if let asset = viewModel.selectedAsset {
-                InvestmentPurchaseView(asset: asset)
+                TradingView(
+                    post: Post(
+                        author: "Quantum Trading",
+                        role: "Trading Platform",
+                        content: "Trading View",
+                        linkedInvestment: asset,
+                        linkedMarketUpdate: MarketUpdate(
+                            title: "Market Update",
+                            description: "Current market prices",
+                            updates: [
+                                MarketUpdate.Update(
+                                    symbol: asset.symbol,
+                                    newPrice: asset.currentPrice,
+                                    newMultiple: nil,
+                                    message: "\(asset.name) (\(asset.symbol)) current price: $\(String(format: "%.2f", asset.currentPrice))",
+                                    type: asset.type == .crypto ? .crypto : .stock
+                                )
+                            ]
+                        )
+                    ),
+                    activeSheet: .constant(.investmentPurchase)
+                )
             } else {
-                Text("Unable to load investment view")
+                Text("Unable to load trading view")
             }
         }
         .sheet(isPresented: $viewModel.showingBusinessPurchase) {

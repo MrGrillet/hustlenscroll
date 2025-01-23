@@ -924,11 +924,17 @@ class GameState: ObservableObject {
         // Clear existing posts
         posts = []
         
-        // Always generate a market update (alternating between crypto and equity)
-        if Bool.random() {
+        // Always generate a market update (alternating between crypto, equity, and business)
+        let updateType = Int.random(in: 0...2) // 0 for crypto, 1 for stocks, 2 for business
+        switch updateType {
+        case 0:
             handleCryptoUpdate()
-        } else {
+        case 1:
             handleEquityUpdate()
+        case 2:
+            handleBusinessUpdate()
+        default:
+            break
         }
         
         // Always generate an opportunity (alternating between small and large)
@@ -1398,10 +1404,20 @@ class GameState: ObservableObject {
         // Record transaction
         transactions.append(Transaction(
             date: Date(),
-            description: "Sale of \(business.title)",
+            description: "Sale of \(business.title)" + (currentPlayer.role == "Owner / Angel Investor" ? " (to Family Trust)" : " (to Checking Account)"),
             amount: saleProceeds,
             isIncome: true
         ))
+        
+        // Create a post about the sale
+        let post = Post(
+            author: currentPlayer.name,
+            role: currentPlayer.role,
+            content: "Just sold \(business.title) for $\(Int(saleProceeds)) at \(String(format: "%.1f", business.currentExitMultiple))x annual cash flow! 🎉💰",
+            timestamp: Date(),
+            isSponsored: false
+        )
+        addPost(post)
         
         // Add confirmation message
         let confirmationMessage = Message(
@@ -1413,7 +1429,7 @@ class GameState: ObservableObject {
             🎉 Congratulations! Sale of \(business.title) completed!
             
             Sale Price: $\(Int(saleProceeds))
-            Exit Multiple: \(String(format: "%.1fx", business.currentExitMultiple)) annual cash flow
+            Exit Multiple: \(String(format: "%.1f", business.currentExitMultiple)) annual cash flow
             
             The funds have been deposited into your \(currentPlayer.role == "Owner / Angel Investor" ? "Family Trust" : "Checking Account").
             """,
@@ -1843,6 +1859,91 @@ class GameState: ObservableObject {
         case "NVDA": return "NVIDIA Corporation"
         default: return symbol
         }
+    }
+    
+    private func handleBusinessUpdate() {
+        // Only proceed if there are active businesses
+        guard !activeBusinesses.isEmpty else { return }
+        
+        // Select a random business from active businesses
+        guard let business = activeBusinesses.randomElement() else { return }
+        
+        // Calculate a new random multiple between 2x and 14x
+        let newMultiple = Double.random(in: 2.0...14.0)
+        let multiplierChange = (newMultiple - business.currentExitMultiple) / business.currentExitMultiple
+        
+        // Create market update
+        let update = MarketUpdate.Update(
+            symbol: business.symbol,
+            newPrice: 0.0,
+            newMultiple: newMultiple,
+            message: generateBusinessUpdateMessage(business: business, newMultiple: newMultiple, multiplierChange: multiplierChange),
+            type: .startup
+        )
+        
+        let marketUpdate = MarketUpdate(
+            title: "Business Valuation Update",
+            description: "Latest valuation update for \(business.title)",
+            updates: [update]
+        )
+        
+        // Create and add the market update post
+        let post = Post(
+            author: "Sarah Chen",
+            role: "M&A Advisor",
+            content: update.message,
+            timestamp: Date(),
+            isSponsored: true,
+            linkedOpportunity: nil,
+            linkedInvestment: nil,
+            linkedMarketUpdate: marketUpdate
+        )
+        posts.insert(post, at: 0)
+        
+        // Update the business's multiple
+        if let index = activeBusinesses.firstIndex(where: { $0.id == business.id }) {
+            var updatedBusiness = business
+            updatedBusiness.currentExitMultiple = newMultiple
+            activeBusinesses[index] = updatedBusiness
+            
+            // Check for exit opportunity if multiple is high enough
+            if newMultiple >= business.potentialSaleMultiple * 1.2 {
+                checkStartupExitOpportunities()
+            }
+        }
+    }
+    
+    private func generateBusinessUpdateMessage(business: BusinessOpportunity, newMultiple: Double, multiplierChange: Double) -> String {
+        let valueChange = multiplierChange >= 0 ? "rises" : "drops"
+        let emoji = multiplierChange >= 0 ? "📈" : "📉"
+        let reason = generateBusinessUpdateReason(business: business, isPositive: multiplierChange >= 0)
+        
+        return "\(business.title) valuation \(valueChange) to \(String(format: "%.1f", newMultiple))x annual cash flow due to \(reason) \(emoji)"
+    }
+    
+    private func generateBusinessUpdateReason(business: BusinessOpportunity, isPositive: Bool) -> String {
+        let positiveReasons = [
+            "strong market growth",
+            "increased customer demand",
+            "successful product launch",
+            "new partnership announcement",
+            "improved profit margins",
+            "industry recognition",
+            "positive market sentiment"
+        ]
+        
+        let negativeReasons = [
+            "market competition",
+            "sector slowdown",
+            "temporary setback",
+            "market uncertainty",
+            "industry challenges",
+            "regulatory changes",
+            "shifting market conditions"
+        ]
+        
+        let reasons = isPositive ? positiveReasons : negativeReasons
+        return reasons.randomElement() ?? (isPositive ? "positive market conditions" : "market conditions")
     }
 }
 

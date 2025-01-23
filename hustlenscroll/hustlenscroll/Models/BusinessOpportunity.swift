@@ -48,6 +48,7 @@ struct BusinessOpportunity: GameEventProtocol, Identifiable, Codable, Hashable {
         case customer
         case socialMedia
         case partner
+        case broker
     }
     
     enum OpportunityType: String, Codable {
