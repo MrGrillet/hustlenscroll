@@ -282,6 +282,9 @@ class GameState: ObservableObject {
         lastRecordedMonth = nil
         showingExitOpportunity = nil
         currentMarketUpdate = nil
+        blackCardBalance = 0
+        platinumCardBalance = 0
+        familyTrustBalance = 0
         
         saveState()
     }
@@ -723,7 +726,19 @@ class GameState: ObservableObject {
     
     // Add a method to add a message to a thread
     func addMessageToThread(senderId: String, message: Message) {
-        messages.append(message)
+        // Check if this exact message already exists
+        let isDuplicate = messages.contains { existingMessage in
+            existingMessage.senderId == message.senderId &&
+            existingMessage.content == message.content &&
+            abs(existingMessage.timestamp.timeIntervalSince(message.timestamp)) < 1.0  // Within 1 second
+        }
+        
+        // Only add if not a duplicate
+        if !isDuplicate {
+            messages.append(message)
+            saveState()
+            objectWillChange.send()
+        }
     }
     
     // Update the handleOpportunityResponse method to use the thread
@@ -767,7 +782,7 @@ class GameState: ObservableObject {
             let userResponseId = UUID()
             let userMessage = Message(
                 id: userResponseId,
-                senderId: message.senderId,  // Keep original sender's ID for thread
+                senderId: message.senderId,  // Use the same senderId as the original message
                 senderName: currentPlayer.name,
                 senderRole: currentPlayer.role,
                 timestamp: baseTimestamp.addingTimeInterval(60),  // 1 minute after original
@@ -777,6 +792,8 @@ class GameState: ObservableObject {
                 isRead: true,
                 opportunityId: message.id  // Link to original message
             )
+            
+            // Add user message to messages array
             messages.append(userMessage)
             print("\nAdded User Response Message:")
             print("  - Message ID: \(userResponseId)")
@@ -796,10 +813,37 @@ class GameState: ObservableObject {
                 isRead: false,
                 opportunityId: message.id  // Link to original message
             )
+            
+            // Add broker message to messages array
             messages.append(brokerMessage)
             print("\nAdded Broker Response Message:")
             print("  - Message ID: \(brokerResponseId)")
             print("  - Content: \(brokerMessage.content)")
+            
+            // Only process business acceptance if the response was "accepted"
+            if accepted && message.opportunity?.type == .startup {
+                // Process the business opportunity if it exists
+                if let opportunity = message.opportunity,
+                   let requiredInvestment = opportunity.requiredInvestment,
+                   let monthlyRevenue = opportunity.monthlyRevenue,
+                   let monthlyExpenses = opportunity.monthlyExpenses,
+                   let revenueShare = opportunity.revenueShare {
+                    
+                    let businessOpp = BusinessOpportunity(
+                        title: opportunity.title,
+                        description: opportunity.description,
+                        source: .partner,
+                        opportunityType: .startup,
+                        monthlyRevenue: monthlyRevenue,
+                        monthlyExpenses: monthlyExpenses,
+                        setupCost: requiredInvestment,
+                        potentialSaleMultiple: 3.0,
+                        revenueShare: revenueShare,
+                        symbol: opportunity.title
+                    )
+                    acceptOpportunity(businessOpp)
+                }
+            }
         }
         
         // Force UI update and save state
@@ -952,8 +996,12 @@ class GameState: ObservableObject {
     
     // Add these functions to GameState
     func advanceDay() {
-        // Clear existing posts
-        posts = []
+        // Filter out market updates and filler posts, keeping user posts
+        posts = posts.filter { post in
+            post.author == currentPlayer.name || 
+            post.author == currentPlayer.handle || 
+            post.author == profile?.name
+        }
         
         // Always generate a market update (alternating between crypto, equity, and business)
         let updateType = Int.random(in: 0...2) // 0 for crypto, 1 for stocks, 2 for business
@@ -1365,11 +1413,10 @@ class GameState: ObservableObject {
             // Only update businesses that match the market update's symbol
             if let update = currentMarketUpdate?.updates.first,
                business.symbol == update.symbol {
-                // Make the change more significant
-                let multiplier = Double.random(in: 1.1...1.5)  // 10-50% increase
-                business.currentExitMultiple = business.currentExitMultiple * multiplier
-                // Ensure multiple doesn't go below 1
-                business.currentExitMultiple = max(1.0, business.currentExitMultiple)
+                // Apply the change directly instead of using a multiplier
+                business.currentExitMultiple = change
+                // Ensure multiple stays within reasonable bounds
+                business.currentExitMultiple = max(1.0, min(business.currentExitMultiple, 20.0))
                 activeBusinesses[i] = business
                 
                 // Check for exit opportunity immediately after a significant increase
@@ -1916,7 +1963,6 @@ class GameState: ObservableObject {
         
         // Calculate a new random multiple between 2x and 14x
         let newMultiple = Double.random(in: 2.0...14.0)
-        let multiplierChange = (newMultiple - business.currentExitMultiple) / business.currentExitMultiple
         
         // Create market update
         let update = MarketUpdate.Update(
@@ -1933,9 +1979,9 @@ class GameState: ObservableObject {
             updates: [update]
         )
         
-        // Update the business's exit multiple
+        // Update the business's exit multiple with safety bounds
         if let index = activeBusinesses.firstIndex(where: { $0.id == business.id }) {
-            activeBusinesses[index].currentExitMultiple = newMultiple
+            activeBusinesses[index].currentExitMultiple = max(1.0, min(newMultiple, 20.0))
         }
         
         // Save state after modifying business values

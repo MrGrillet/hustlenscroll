@@ -94,42 +94,33 @@ struct MessageThreadView: View {
     }
     
     var messages: [Message] {
-        // Get all messages for this thread in their original order
+        // Get all messages for this thread
         let threadMessages = thread.messageIds.compactMap { id in
             gameState.messages.first { $0.id == id }
         }
         
-        // Group messages by their opportunity
-        var result: [Message] = []
-        var processedIds = Set<UUID>()
+        // Create a dictionary to group messages by their opportunity
+        var opportunityGroups: [UUID?: [Message]] = [:]
         
-        // Process messages in their original order
+        // Group messages by their opportunity ID (nil for standalone messages)
         for message in threadMessages {
-            // Skip if we've already processed this message
-            if processedIds.contains(message.id) {
-                continue
+            let key = message.opportunityId ?? message.id
+            if opportunityGroups[key] == nil {
+                opportunityGroups[key] = []
             }
-            
-            // If this is an opportunity message or a regular message
-            if message.id == message.opportunityId || message.opportunityId == nil {
-                result.append(message)
-                processedIds.insert(message.id)
-                
-                // If it's an opportunity message, add its responses
-                if message.opportunity != nil {
-                    let responses = threadMessages
-                        .filter { $0.opportunityId == message.id && $0.id != message.id }
-                        .sorted { $0.timestamp < $1.timestamp }
-                    
-                    for response in responses {
-                        result.append(response)
-                        processedIds.insert(response.id)
-                    }
-                }
-            }
+            opportunityGroups[key]?.append(message)
         }
         
-        return result
+        // Sort and flatten the groups
+        var result: [Message] = []
+        for (_, group) in opportunityGroups {
+            // Sort messages within each group by timestamp
+            let sortedGroup = group.sorted { $0.timestamp < $1.timestamp }
+            result.append(contentsOf: sortedGroup)
+        }
+        
+        // Sort all messages by timestamp
+        return result.sorted { $0.timestamp < $1.timestamp }
     }
     
     var body: some View {
