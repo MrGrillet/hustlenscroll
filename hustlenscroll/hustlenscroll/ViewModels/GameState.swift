@@ -822,27 +822,7 @@ class GameState: ObservableObject {
             
             // Only process business acceptance if the response was "accepted"
             if accepted && message.opportunity?.type == .startup {
-                // Process the business opportunity if it exists
-                if let opportunity = message.opportunity,
-                   let requiredInvestment = opportunity.requiredInvestment,
-                   let monthlyRevenue = opportunity.monthlyRevenue,
-                   let monthlyExpenses = opportunity.monthlyExpenses,
-                   let revenueShare = opportunity.revenueShare {
-                    
-                    let businessOpp = BusinessOpportunity(
-                        title: opportunity.title,
-                        description: opportunity.description,
-                        source: .partner,
-                        opportunityType: .startup,
-                        monthlyRevenue: monthlyRevenue,
-                        monthlyExpenses: monthlyExpenses,
-                        setupCost: requiredInvestment,
-                        potentialSaleMultiple: 3.0,
-                        revenueShare: revenueShare,
-                        symbol: opportunity.title
-                    )
-                    acceptOpportunity(businessOpp)
-                }
+                // We no longer create the business here since it's handled in BusinessPurchaseView
             }
         }
         

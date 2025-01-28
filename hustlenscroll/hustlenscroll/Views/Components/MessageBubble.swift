@@ -71,21 +71,6 @@ struct MessageBubble: View {
                                     switch opportunity.type {
                                     case .startup:
                                         Button {
-                                            // Create BusinessOpportunity from the Opportunity
-                                            let businessOpp = BusinessOpportunity(
-                                                title: opportunity.title,
-                                                description: opportunity.description,
-                                                source: .broker,
-                                                opportunityType: .startup,
-                                                monthlyRevenue: opportunity.monthlyRevenue ?? 0,
-                                                monthlyExpenses: opportunity.monthlyExpenses ?? 0,
-                                                setupCost: opportunity.requiredInvestment ?? 0,
-                                                potentialSaleMultiple: 3.0,
-                                                revenueShare: opportunity.revenueShare ?? 100,
-                                                symbol: opportunity.title,
-                                                originalOpportunityId: opportunity.id
-                                            )
-                                            
                                             // Update message status and add responses
                                             gameState.handleOpportunityResponse(message: message, accepted: true)
                                             
@@ -93,7 +78,19 @@ struct MessageBubble: View {
                                             NotificationCenter.default.post(
                                                 name: NSNotification.Name("ShowBusinessPurchase"),
                                                 object: nil,
-                                                userInfo: ["opportunity": businessOpp]
+                                                userInfo: ["opportunity": BusinessOpportunity(
+                                                    title: opportunity.title,
+                                                    description: opportunity.description,
+                                                    source: .broker,
+                                                    opportunityType: .startup,
+                                                    monthlyRevenue: opportunity.monthlyRevenue ?? 0,
+                                                    monthlyExpenses: opportunity.monthlyExpenses ?? 0,
+                                                    setupCost: opportunity.requiredInvestment ?? 0,
+                                                    potentialSaleMultiple: 3.0,
+                                                    revenueShare: opportunity.revenueShare ?? 100,
+                                                    symbol: opportunity.title,
+                                                    originalOpportunityId: opportunity.id
+                                                )]
                                             )
                                         } label: {
                                             Text("Review Accounts")
