@@ -94,33 +94,13 @@ struct MessageThreadView: View {
     }
     
     var messages: [Message] {
-        // Get all messages for this thread
-        let threadMessages = thread.messageIds.compactMap { id in
-            gameState.messages.first { $0.id == id }
+        // Build the thread directly from gameState messages to avoid grouping re-ordering
+        let threadMessages = gameState.messages.filter { thread.messageIds.contains($0.id) }
+        // Sort deterministically by timestamp, then by UUID as a tie-breaker
+        return threadMessages.sorted {
+            if $0.timestamp == $1.timestamp { return $0.id.uuidString < $1.id.uuidString }
+            return $0.timestamp < $1.timestamp
         }
-        
-        // Create a dictionary to group messages by their opportunity
-        var opportunityGroups: [UUID?: [Message]] = [:]
-        
-        // Group messages by their opportunity ID (nil for standalone messages)
-        for message in threadMessages {
-            let key = message.opportunityId ?? message.id
-            if opportunityGroups[key] == nil {
-                opportunityGroups[key] = []
-            }
-            opportunityGroups[key]?.append(message)
-        }
-        
-        // Sort and flatten the groups
-        var result: [Message] = []
-        for (_, group) in opportunityGroups {
-            // Sort messages within each group by timestamp
-            let sortedGroup = group.sorted { $0.timestamp < $1.timestamp }
-            result.append(contentsOf: sortedGroup)
-        }
-        
-        // Sort all messages by timestamp
-        return result.sorted { $0.timestamp < $1.timestamp }
     }
     
     var body: some View {

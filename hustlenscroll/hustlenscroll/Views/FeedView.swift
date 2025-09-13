@@ -78,7 +78,15 @@ struct FeedPostView: View {
                     HStack {
                         // Author Name and Role
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(post.author == gameState.currentPlayer.name ? (gameState.currentPlayer.handle ?? post.userHandle) : post.userHandle)
+                            Text({ () -> String in
+                                let selfNames: [String?] = [gameState.currentPlayer.name, gameState.profile?.name, gameState.currentPlayer.handle]
+                                if selfNames.contains(where: { $0 == post.author }) {
+                                    if let h = gameState.currentPlayer.handle, !h.isEmpty {
+                                        return h.hasPrefix("@") ? h : "@\(h)"
+                                    }
+                                }
+                                return post.userHandle
+                            }())
                                 .font(.headline)
                             Text(post.role)
                                 .font(.subheadline)
@@ -120,9 +128,12 @@ struct FeedPostView: View {
                         .padding(.vertical, 5)
                     }
                     
-                    // Investment Badge
+                    // Badges
                     if post.linkedInvestment != nil {
-                        BadgeView(text: "Investment Opportunity")
+                        BadgeView(text: "#investmentOpportunity")
+                            .padding(.top, 4)
+                    } else if post.linkedMarketUpdate != nil {
+                        BadgeView(text: "#marketUpdate")
                             .padding(.top, 4)
                     }
                 }

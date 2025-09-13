@@ -74,7 +74,7 @@ struct AccountDetailView: View {
                             .foregroundColor(.gray)
                             .padding()
                     } else {
-                        ForEach(transactions.prefix(10)) { transaction in
+                        ForEach(transactions.sorted { $0.date > $1.date }.prefix(10)) { transaction in
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(transaction.description)

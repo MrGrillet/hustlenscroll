@@ -208,9 +208,9 @@ struct PostBadge: View {
     var body: some View {
         Group {
             if post.linkedInvestment != nil {
-                BadgeView(text: "Investment Opportunity")
+                BadgeView(text: "#investmentOpportunity")
             } else if isMarketUpdate {
-                BadgeView(text: "Market Update")
+                BadgeView(text: "#marketUpdate")
             } else if isTrendingTopic {
                 TrendingBadge(post: post)
             }
@@ -225,10 +225,10 @@ struct BadgeView: View {
     var body: some View {
         Text(text)
             .font(.caption)
-            .foregroundColor(.blue)
+            .foregroundColor(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Color(uiColor: .systemGray6))
+            .background(Color.black)
             .cornerRadius(4)
     }
 }
@@ -997,8 +997,56 @@ struct TradingView: View {
     @State private var quantity: Double = 0.0
     
     var body: some View {
-        if let update = gameState.currentMarketUpdate,
-           let assetUpdate = update.updates.first {
+        // Prefer the asset referenced by the tapped post if present
+        if let asset = post.linkedInvestment {
+            NavigationView {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        MarketInfoView(description: "Current market prices and trading actions for \(asset.name) (\(asset.symbol))")
+                        MarketUpdateCard(assetUpdate: MarketUpdate.Update(
+                            symbol: asset.symbol,
+                            newPrice: asset.currentPrice,
+                            newMultiple: nil,
+                            message: "\(asset.name) (\(asset.symbol)) current price: $\(String(format: "%.2f", asset.currentPrice))",
+                            type: asset.type
+                        ))
+
+                        let holdings = getCurrentHoldings(for: asset.symbol)
+                        if let holdings = holdings {
+                            HoldingsView(
+                                symbol: asset.symbol,
+                                holdings: holdings,
+                                currentPrice: asset.currentPrice
+                            )
+                        }
+
+                        TradingInputView(
+                            quantity: $quantity,
+                            assetUpdate: MarketUpdate.Update(
+                                symbol: asset.symbol,
+                                newPrice: asset.currentPrice,
+                                newMultiple: nil,
+                                message: "",
+                                type: asset.type
+                            ),
+                            holdings: holdings,
+                            onSell: {
+                                if let h = holdings, quantity <= h.quantity {
+                                    sellHoldings(for: asset.symbol, quantity: quantity)
+                                    activeSheet = nil
+                                }
+                            }
+                        )
+                    }
+                    .padding()
+                }
+                .navigationTitle("Quantum Trading App")
+                .navigationBarItems(trailing: Button("Close") {
+                    activeSheet = nil
+                })
+            }
+        } else if let update = gameState.currentMarketUpdate,
+                  let assetUpdate = update.updates.first {
             NavigationView {
                 ScrollView {
                     VStack(spacing: 20) {

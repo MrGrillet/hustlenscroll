@@ -82,7 +82,10 @@ struct ComposePostView: View {
                 Spacer()
                 
                 if !postContent.isEmpty {
-                    Button(action: createPost) {
+                    Button(action: {
+                        createPost()
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }) {
                         Text("Post")
                             .frame(maxWidth: .infinity)
                             .padding()

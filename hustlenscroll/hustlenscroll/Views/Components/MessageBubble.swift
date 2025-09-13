@@ -10,10 +10,6 @@ struct MessageBubble: View {
     
     var body: some View {
         HStack(spacing: 0) {
-            if message.opportunityId != nil && message.id != message.opportunityId {
-                Spacer()
-                    .frame(width: 50)
-            }
             
             HStack(alignment: .top, spacing: 12) {
                 if !isUserMessage {
@@ -252,9 +248,9 @@ struct MessageOpportunityView: View {
                 // Revenue Share
                 if let share = opportunity.revenueShare {
                     HStack {
-                        Text("Your Share:")
+                        Text("Your Ownership:")
                             .font(.subheadline)
-                        Text("\(Int(share))% of Revenue")
+                        Text("\(Int(share))% of Revenue (paid as dividends)")
                             .font(.subheadline)
                             .bold()
                     }

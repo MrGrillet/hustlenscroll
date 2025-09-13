@@ -52,6 +52,9 @@ class GameState: ObservableObject {
     @Published var userPosts: [Post] = []
     @Published var pendingUserPosts: [Post] = []
     @Published var draftPost: (content: String, images: [String], opportunity: BusinessOpportunity?, investment: Asset?)? = nil
+    // Feed refresh-based payday schedule
+    @Published var refreshesSincePayday: Int = 0
+    @Published var nextPaydayIn: Int = 3
     
     var initialMessages: [Message] {
         // Create a fixed date for initial messages - Jan 1, 2024
@@ -148,6 +151,8 @@ class GameState: ObservableObject {
             self.blackCardBalance = decoded.blackCardBalance
             self.platinumCardBalance = decoded.platinumCardBalance
             self.familyTrustBalance = decoded.familyTrustBalance
+            self.refreshesSincePayday = decoded.refreshesSincePayday ?? 0
+            self.nextPaydayIn = decoded.nextPaydayIn ?? Int.random(in: 3...6)
             
             // Clean up any duplicate messages
             removeDuplicateMessages()
@@ -206,6 +211,7 @@ class GameState: ObservableObject {
         if self.posts.isEmpty {
             self.posts = SampleContent.generateFillerPosts(count: 3)
         }
+        if nextPaydayIn <= 0 { nextPaydayIn = Int.random(in: 3...6) }
         
         // Force a save to ensure everything is persisted
         saveState()
@@ -248,7 +254,9 @@ class GameState: ObservableObject {
             currentMarketUpdate: currentMarketUpdate,
             blackCardBalance: blackCardBalance,
             platinumCardBalance: platinumCardBalance,
-            familyTrustBalance: familyTrustBalance
+            familyTrustBalance: familyTrustBalance,
+            refreshesSincePayday: refreshesSincePayday,
+            nextPaydayIn: nextPaydayIn
         )
         
         if let encoded = try? JSONEncoder().encode(state) {
@@ -296,13 +304,15 @@ class GameState: ObservableObject {
     
     func advanceTurn() {
         // Record all monthly transactions
-        recordMonthlyTransactions()
+        let dividend = activeBusinesses.reduce(0.0) { $0 + ($1.monthlyCashflow * ($1.revenueShare / 100.0)) }
+        recordMonthlyTransactions(monthlyDividend: dividend)
         
         // Get role details
         guard let role = Role.getRole(byTitle: currentPlayer.role) else { return }
         
         // Update bank balance with income
         currentPlayer.bankBalance += role.monthlySalary
+        currentPlayer.bankBalance += dividend
         
         // Update bank balance with expenses
         currentPlayer.bankBalance -= role.monthlyExpenses
@@ -437,7 +447,7 @@ class GameState: ObservableObject {
         }
     }
     
-    func recordMonthlyTransactions(for date: Date = Date()) {
+    func recordMonthlyTransactions(for date: Date = Date(), monthlyDividend: Double? = nil) {
         let calendar = Calendar.current
         let currentMonth = calendar.startOfMonth(from: date)
         
@@ -458,13 +468,13 @@ class GameState: ObservableObject {
             isIncome: true
         ))
         
-        // Record revenue share from active businesses
-        for business in activeBusinesses {
-            let revenueShare = business.monthlyCashflow * (business.revenueShare / 100.0)
+        // Record monthly dividend as a single line item
+        let dividendTotal = monthlyDividend ?? activeBusinesses.reduce(0.0) { $0 + ($1.monthlyCashflow * ($1.revenueShare / 100.0)) }
+        if dividendTotal > 0 {
             transactions.append(Transaction(
                 date: currentMonth,
-                description: "Revenue Share - \(business.title)",
-                amount: revenueShare,
+                description: "Monthly Dividend",
+                amount: dividendTotal,
                 isIncome: true
             ))
         }
@@ -778,12 +788,15 @@ class GameState: ObservableObject {
         if expired {
             // For expired opportunities, only add broker's message
             let brokerResponseId = UUID()
+            let now = Date()
+            // Ensure broker message is after the original but not in the future
+            let brokerTimestamp = min(max(baseTimestamp.addingTimeInterval(120), baseTimestamp.addingTimeInterval(1)), now)
             let brokerMessage = Message(
                 id: brokerResponseId,
                 senderId: message.senderId,
                 senderName: message.senderName,
                 senderRole: message.senderRole,
-                timestamp: baseTimestamp.addingTimeInterval(120),
+                timestamp: brokerTimestamp,
                 content: "I'm sorry, but you're too late. Someone has submitted an offer and it was accepted.",
                 isRead: false,
                 opportunityId: message.id
@@ -795,12 +808,15 @@ class GameState: ObservableObject {
         } else {
             // Create user's response message with unique ID (1 minute after original)
             let userResponseId = UUID()
+            let now = Date()
+            // Ensure user reply is after original but not in the future
+            let userTimestamp = min(max(baseTimestamp.addingTimeInterval(60), baseTimestamp.addingTimeInterval(1)), now)
             let userMessage = Message(
                 id: userResponseId,
                 senderId: message.senderId,  // Use the same senderId as the original message
                 senderName: currentPlayer.name,
                 senderRole: currentPlayer.role,
-                timestamp: baseTimestamp.addingTimeInterval(60),  // 1 minute after original
+                timestamp: userTimestamp,
                 content: accepted ? 
                     BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages) :
                     BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userRejectionMessages),
@@ -816,12 +832,14 @@ class GameState: ObservableObject {
             
             // Create broker's response with unique ID (2 minutes after original)
             let brokerResponseId = UUID()
+            // Broker follows after user reply, but never in the future
+            let brokerTimestamp = min(max(userTimestamp.addingTimeInterval(5), baseTimestamp.addingTimeInterval(120)), now)
             let brokerMessage = Message(
                 id: brokerResponseId,
                 senderId: message.senderId,  // Keep original sender's ID for thread
                 senderName: message.senderName,
                 senderRole: message.senderRole,
-                timestamp: baseTimestamp.addingTimeInterval(120),  // 2 minutes after original
+                timestamp: brokerTimestamp,
                 content: accepted ?
                     BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerFollowUpMessages) :
                     BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.brokerRejectionResponses),
@@ -993,6 +1011,8 @@ class GameState: ObservableObject {
     func advanceDay() {
         // Start a fresh feed each refresh
         posts = []
+        // Expire any pending startup offers (no response yet)
+        expirePendingStartupOffers()
 
         // Always generate a market update (alternating between crypto, equity, and startup)
         let updateType = Int.random(in: 0...2)
@@ -1018,10 +1038,9 @@ class GameState: ObservableObject {
         posts.append(contentsOf: filler)
 
         // Handle other daily events (these may also add posts/messages)
+        // Payday is now scheduled by refresh counter below
         let dayType = DayType.random()
         switch dayType {
-        case .payday:
-            handlePayday()
         case .expense:
             generateUnexpectedExpense()
         case .baby:
@@ -1032,6 +1051,14 @@ class GameState: ObservableObject {
             checkStartupExitOpportunities()
         default:
             break
+        }
+
+        // Refresh-based payday scheduling
+        refreshesSincePayday += 1
+        if refreshesSincePayday >= nextPaydayIn {
+            handlePayday()
+            refreshesSincePayday = 0
+            nextPaydayIn = Int.random(in: 3...6)
         }
 
         // Shuffle non-pending content to simulate a random feed
@@ -1049,6 +1076,15 @@ class GameState: ObservableObject {
         saveState()
         objectWillChange.send()
     }
+
+    private func expirePendingStartupOffers() {
+        // For each startup opportunity message still pending, add an expiry follow-up
+        let pending = messages.filter { $0.opportunity?.type == .startup && $0.opportunityStatus == .pending }
+        guard !pending.isEmpty else { return }
+        for original in pending {
+            handleOpportunityResponse(message: original, accepted: false, expired: true)
+        }
+    }
     
     private func generateOpportunity(size: DayType.OpportunitySize) {
         // 30% chance for investment opportunity → feed only
@@ -1056,11 +1092,12 @@ class GameState: ObservableObject {
             let (investment, message) = createInvestmentOpportunity()
 
             // Add to feed as post (no DM for investments)
+            let priceText = String(format: "%.2f", investment.currentPrice)
             let post = Post(
                 id: UUID(),
                 author: message.senderName,
                 role: message.senderRole,
-                content: "🔥 Hot Investment Opportunity! Check it out!",
+                content: "🔥 Hot Investment: \(investment.name) (\(investment.symbol)) at $\(priceText)",
                 timestamp: Date(),
                 isSponsored: true,
                 linkedInvestment: investment
@@ -1191,11 +1228,13 @@ class GameState: ObservableObject {
         
         // Add salary to bank account
         currentPlayer.bankBalance += role.monthlySalary
-        
-        // Add revenue share from businesses
-        for business in activeBusinesses {
-            let revenueShare = business.monthlyCashflow * (business.revenueShare / 100.0)
-            currentPlayer.bankBalance += revenueShare
+
+        // Add monthly dividend (sum of user's share of cashflow from all owned businesses)
+        let monthlyDividend = activeBusinesses.reduce(0.0) { partial, business in
+            partial + (business.monthlyCashflow * (business.revenueShare / 100.0))
+        }
+        if monthlyDividend > 0 {
+            currentPlayer.bankBalance += monthlyDividend
         }
         
         // Add message notification with explicit isRead = false
@@ -1203,8 +1242,10 @@ class GameState: ObservableObject {
             senderId: "BANK",
             senderName: "Quantum Bank",
             senderRole: "Payroll Department",
-            timestamp: nextMonth,
-            content: "Your monthly salary of $\(Int(role.monthlySalary)) has been deposited into your account.",
+            timestamp: Date(),
+            content: monthlyDividend > 0 ?
+                "Your monthly salary of $\(Int(role.monthlySalary)) and your dividend of $\(Int(monthlyDividend)) (\(Int(activeBusinesses.reduce(0.0){$0 + ($1.revenueShare) }/Double(max(activeBusinesses.count,1))))% of business cashflow) have been deposited into your checking account." :
+                "Your monthly salary of $\(Int(role.monthlySalary)) has been deposited into your checking account.",
             opportunity: nil,
             isRead: false
         )
@@ -1219,8 +1260,21 @@ class GameState: ObservableObject {
             objectWillChange.send()
         }
         
-        // Record transactions for the next month
-        recordMonthlyTransactions(for: nextMonth)
+        // Record transactions immediately for visibility in checking account
+        transactions.append(Transaction(
+            date: Date(),
+            description: "Monthly Salary",
+            amount: role.monthlySalary,
+            isIncome: true
+        ))
+        if monthlyDividend > 0 {
+            transactions.append(Transaction(
+                date: Date(),
+                description: "Monthly Dividend",
+                amount: monthlyDividend,
+                isIncome: true
+            ))
+        }
     }
     
     private func generateUnexpectedExpense() {
@@ -1571,10 +1625,30 @@ class GameState: ObservableObject {
     }
     
     func addPost(_ post: Post) {
+        // Normalize author to current handle when it's the user's post
+        var resolvedPost = post
+        if post.author == currentPlayer.name || post.author == profile?.name || post.author == currentPlayer.handle {
+            if let h = currentPlayer.handle, !h.isEmpty {
+                let display = h.hasPrefix("@") ? h : "@\(h)"
+                resolvedPost = Post(
+                    id: post.id,
+                    author: display,
+                    role: post.role,
+                    content: post.content,
+                    timestamp: post.timestamp,
+                    isSponsored: post.isSponsored,
+                    linkedOpportunity: post.linkedOpportunity,
+                    linkedInvestment: post.linkedInvestment,
+                    linkedMarketUpdate: post.linkedMarketUpdate,
+                    images: post.images,
+                    isAutoGenerated: post.isAutoGenerated
+                )
+            }
+        }
         // Always add to profile
-        userPosts.insert(post, at: 0)
+        userPosts.insert(resolvedPost, at: 0)
         // Queue for one-time appearance in the next feed refresh
-        pendingUserPosts.append(post)
+        pendingUserPosts.append(resolvedPost)
         saveState()
         objectWillChange.send()
     }
@@ -1898,11 +1972,12 @@ class GameState: ObservableObject {
             type: .crypto
         )
 
+        let priceText = String(format: "%.2f", investment.currentPrice)
         let post = Post(
             id: UUID(),
             author: analyst,
             role: "Crypto Market Analyst",
-            content: generateCryptoAdvice(for: symbol),
+            content: "\(generateCryptoAdvice(for: symbol)) Current price for \(investment.name) (\(investment.symbol)) is $\(priceText).",
             timestamp: Date(),
             isSponsored: true,
             linkedInvestment: investment
@@ -2090,4 +2165,6 @@ struct SavedGameState: Codable {
     let blackCardBalance: Double
     let platinumCardBalance: Double
     let familyTrustBalance: Double
+    let refreshesSincePayday: Int?
+    let nextPaydayIn: Int?
 } 

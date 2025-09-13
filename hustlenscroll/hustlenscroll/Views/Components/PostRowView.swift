@@ -25,8 +25,14 @@ struct PostRowView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    // Author Name
-                    Text(post.author == gameState.currentPlayer.name ? (gameState.currentPlayer.handle ?? post.userHandle) : post.userHandle)
+                    // Author Handle (preserve original casing if user supplied a handle)
+                    Text({ () -> String in
+                        if let h = gameState.currentPlayer.handle, !h.isEmpty {
+                            return h.hasPrefix("@") ? h : "@\(h)"
+                        } else {
+                            return post.userHandle
+                        }
+                    }())
                         .font(.subheadline)
                         .fontWeight(.semibold)
                     

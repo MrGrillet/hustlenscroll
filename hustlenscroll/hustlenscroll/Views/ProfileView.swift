@@ -23,7 +23,13 @@ struct ProfileView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             HStack(alignment: .center) {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(gameState.currentPlayer.handle ?? "@\(gameState.currentPlayer.name.replacingOccurrences(of: " ", with: "").lowercased())")
+                                    Text({ () -> String in
+                                        if let h = gameState.currentPlayer.handle, !h.isEmpty {
+                                            return h.hasPrefix("@") ? h : "@\(h)"
+                                        } else {
+                                            return "@\(gameState.currentPlayer.name.replacingOccurrences(of: " ", with: "").lowercased())"
+                                        }
+                                    }())
                                         .font(.title)
                                         .bold()
                                     
@@ -174,6 +180,9 @@ struct PostsTabView: View {
                             .lineLimit(4...8)
                             .textFieldStyle(.plain)
                             .font(.body)
+                            .onTapGesture {
+                                // no-op; ensures field is focusable
+                            }
                         
                         HStack {
                             PhotosPicker(selection: $selectedItems,
@@ -237,6 +246,11 @@ struct PostsTabView: View {
                     }
                 }
             }
+            // Dismiss keyboard when tapping outside
+            .contentShape(Rectangle())
+            .onTapGesture {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
             .padding()
             
             if !postContent.isEmpty {
@@ -244,6 +258,8 @@ struct PostsTabView: View {
                     Spacer()
                     Button {
                         createPost()
+                        // Dismiss keyboard after posting
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                     } label: {
                         Text("Post")
                             .fontWeight(.semibold)

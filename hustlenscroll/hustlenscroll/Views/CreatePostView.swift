@@ -16,6 +16,9 @@ struct CreatePostView: View {
                     .padding(8)
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
+                    .onTapGesture {
+                        // allow tap outside to dismiss keyboard handled by the NavigationView background
+                    }
                 
                 PhotosPicker(selection: $selectedItems,
                            maxSelectionCount: 4,
@@ -39,7 +42,10 @@ struct CreatePostView: View {
                 
                 Spacer()
                 
-                Button(action: createPost) {
+                Button(action: {
+                    createPost()
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }) {
                     Text("Post")
                         .frame(maxWidth: .infinity)
                         .padding()

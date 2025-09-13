@@ -51,8 +51,8 @@ struct BusinessAccountView: View {
                             .padding(.vertical, 5)
                         
                         InfoRow(title: "Initial Investment", value: String(format: "$%.2f", business.setupCost))
-                        InfoRow(title: "Your Ownership", value: String(format: "%.1f%%", business.revenueShare))
-                        InfoRow(title: "Your Monthly Share", value: String(format: "$%.2f", business.monthlyCashflow * (business.revenueShare / 100.0)))
+                        InfoRow(title: "Your Ownership", value: String(format: "%.1f%% of Revenue", business.revenueShare))
+                        InfoRow(title: "Your Monthly Dividend", value: String(format: "$%.2f", business.monthlyCashflow * (business.revenueShare / 100.0)))
                     }
                     .padding()
                     .background(Color.gray.opacity(0.1))
