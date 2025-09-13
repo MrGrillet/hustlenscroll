@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AudioToolbox
 
 // Add Calendar extension for startOfMonth
 extension Calendar {
@@ -49,6 +50,7 @@ class GameState: ObservableObject {
     @Published var showingExitOpportunity: BusinessOpportunity? = nil
     @Published var currentMarketUpdate: MarketUpdate? = nil
     @Published var userPosts: [Post] = []
+    @Published var pendingUserPosts: [Post] = []
     @Published var draftPost: (content: String, images: [String], opportunity: BusinessOpportunity?, investment: Asset?)? = nil
     
     var initialMessages: [Message] {
@@ -141,6 +143,7 @@ class GameState: ObservableObject {
             self.currentMarketUpdate = decoded.currentMarketUpdate
             self.posts = decoded.posts
             self.userPosts = decoded.userPosts
+            self.pendingUserPosts = decoded.pendingUserPosts ?? []
             self.profileImage = decoded.profileImage
             self.blackCardBalance = decoded.blackCardBalance
             self.platinumCardBalance = decoded.platinumCardBalance
@@ -223,6 +226,7 @@ class GameState: ObservableObject {
             eventLog: eventLog,
             posts: posts,
             userPosts: userPosts,
+            pendingUserPosts: pendingUserPosts,
             player: currentPlayer,
             goal: playerGoal,
             profileImage: profileImage,
@@ -279,6 +283,7 @@ class GameState: ObservableObject {
         messages = initialMessages
         posts = SampleContent.generateFillerPosts(count: 3)
         userPosts = []
+        pendingUserPosts = []
         lastRecordedMonth = nil
         showingExitOpportunity = nil
         currentMarketUpdate = nil
@@ -696,6 +701,16 @@ class GameState: ObservableObject {
         )
         transactions.append(transaction)
         
+        // Create a post about the purchase (journal entry)
+        let purchasePost = Post(
+            author: currentPlayer.name,
+            role: currentPlayer.role,
+            content: "Just acquired \(opportunity.title)! Initial investment: $\(Int(opportunity.setupCost)). New monthly cash flow: $\(Int(opportunity.monthlyCashflow)). 🚀",
+            timestamp: Date(),
+            isSponsored: false
+        )
+        addPost(purchasePost)
+
         saveState()
         objectWillChange.send()
     }
@@ -976,15 +991,11 @@ class GameState: ObservableObject {
     
     // Add these functions to GameState
     func advanceDay() {
-        // Filter out market updates and filler posts, keeping user posts
-        posts = posts.filter { post in
-            post.author == currentPlayer.name || 
-            post.author == currentPlayer.handle || 
-            post.author == profile?.name
-        }
-        
-        // Always generate a market update (alternating between crypto, equity, and business)
-        let updateType = Int.random(in: 0...2) // 0 for crypto, 1 for stocks, 2 for business
+        // Start a fresh feed each refresh
+        posts = []
+
+        // Always generate a market update (alternating between crypto, equity, and startup)
+        let updateType = Int.random(in: 0...2)
         switch updateType {
         case 0:
             handleCryptoUpdate()
@@ -995,15 +1006,18 @@ class GameState: ObservableObject {
         default:
             break
         }
-        
-        // Always generate an opportunity (alternating between small and large)
-        generateOpportunity(size: Bool.random() ? .small : .large)
-        
-        // Add a smaller number of filler posts (3-5 posts)
-        let newPosts = SampleContent.generateFillerPosts(count: Int.random(in: 3...5))
-        posts.append(contentsOf: newPosts)
-        
-        // Handle other daily events
+
+        // Insert 1–2 opportunities
+        let opportunityCount = Int.random(in: 1...2)
+        for _ in 0..<opportunityCount {
+            generateOpportunity(size: Bool.random() ? .small : .large)
+        }
+
+        // Add filler posts (5–8) to make the feed feel alive
+        let filler = SampleContent.generateFillerPosts(count: Int.random(in: 5...8))
+        posts.append(contentsOf: filler)
+
+        // Handle other daily events (these may also add posts/messages)
         let dayType = DayType.random()
         switch dayType {
         case .payday:
@@ -1019,17 +1033,29 @@ class GameState: ObservableObject {
         default:
             break
         }
-        
+
+        // Shuffle non-pending content to simulate a random feed
+        var shuffled = posts
+        shuffled.shuffle()
+
+        // Show any user posts once at the top on next refresh
+        if !pendingUserPosts.isEmpty {
+            posts = pendingUserPosts + shuffled
+            pendingUserPosts.removeAll()
+        } else {
+            posts = shuffled
+        }
+
         saveState()
         objectWillChange.send()
     }
     
     private func generateOpportunity(size: DayType.OpportunitySize) {
-        // 30% chance for investment opportunity
+        // 30% chance for investment opportunity → feed only
         if Double.random(in: 0...1) < 0.3 {
             let (investment, message) = createInvestmentOpportunity()
-            
-            // Add to feed as post
+
+            // Add to feed as post (no DM for investments)
             let post = Post(
                 id: UUID(),
                 author: message.senderName,
@@ -1040,13 +1066,12 @@ class GameState: ObservableObject {
                 linkedInvestment: investment
             )
             posts.append(post)
-            
-            // Add to DMs
-            messages.append(message)
+            saveState()
+            objectWillChange.send()
             return
         }
-        
-        // Filter opportunities by size
+
+        // Filter opportunities by size (startup buys) → messages only
         let opportunities = PredefinedOpportunity.opportunities.filter { opportunity in
             if size == .large {
                 return opportunity.0.setupCost >= 50000
@@ -1072,21 +1097,28 @@ class GameState: ObservableObject {
             revenueShare: opportunity.revenueShare,
             symbol: getSymbolForTitle(opportunity.title)
         )
-        
-        // Add to feed as post
-        let post = Post(
-            id: UUID(),
-            author: message.senderName,
-            role: message.senderRole,
-            content: size == .large ? "🔥 Exciting Opportunity! DM for details!" : "💡 Interesting opportunity. DM me to learn more.",
+        // Startup buy opportunities go to Messages only
+        let startupMessage = Message(
+            senderId: message.senderId,
+            senderName: message.senderName,
+            senderRole: message.senderRole,
             timestamp: Date(),
-            isSponsored: size == .large,
-            linkedOpportunity: newOpportunity
+            content: message.content,
+            opportunity: Opportunity(
+                title: newOpportunity.title,
+                description: newOpportunity.description,
+                type: .startup,
+                requiredInvestment: newOpportunity.setupCost,
+                monthlyRevenue: newOpportunity.monthlyRevenue,
+                monthlyExpenses: newOpportunity.monthlyExpenses,
+                revenueShare: newOpportunity.revenueShare
+            ),
+            isRead: false
         )
-        posts.append(post)
-        
-        // Add to DMs
-        messages.append(message)
+        messages.append(startupMessage)
+        triggerIncomingStartupOpportunityFeedback()
+        saveState()
+        objectWillChange.send()
     }
     
     private func createInvestmentOpportunity() -> (Asset, Message) {
@@ -1539,9 +1571,11 @@ class GameState: ObservableObject {
     }
     
     func addPost(_ post: Post) {
+        // Always add to profile
         userPosts.insert(post, at: 0)
-        posts.insert(post, at: 0)  // Add to both arrays to ensure visibility
-        saveState()  // Save state immediately after adding post
+        // Queue for one-time appearance in the next feed refresh
+        pendingUserPosts.append(post)
+        saveState()
         objectWillChange.send()
     }
     
@@ -1850,31 +1884,40 @@ class GameState: ObservableObject {
     }
     
     private func handleCryptoDM() {
-        // Select a random crypto asset
+        // Convert crypto DM into a feed investment post instead of a DM
         let cryptoSymbols = ["BTC", "ETH", "SOL", "DOGE"]
         let symbol = cryptoSymbols.randomElement() ?? "BTC"
-        
-        // Create a message about the crypto opportunity
-        let cryptoAnalyst = Bool.random() ? "Alex Chen" : "Sarah Kim"
-        let message = Message(
-            senderId: "crypto_analyst",
-            senderName: cryptoAnalyst,
-            senderRole: "Crypto Market Analyst",
-            timestamp: Date(),
-            content: generateCryptoAdvice(for: symbol),
-            opportunity: Opportunity(
-                title: getAssetName(for: symbol),
-                description: "Consider adding \(symbol) to your portfolio at the current price.",
-                type: .investment,
-                requiredInvestment: getCurrentPrice(for: symbol),
-                monthlyRevenue: nil,
-                monthlyExpenses: nil,
-                revenueShare: nil
-            ),
-            isRead: false
+
+        let analyst = Bool.random() ? "Alex Chen" : "Sarah Kim"
+        let investment = Asset(
+            symbol: symbol,
+            name: getAssetName(for: symbol),
+            quantity: 0,
+            currentPrice: getCurrentPrice(for: symbol),
+            purchasePrice: getCurrentPrice(for: symbol),
+            type: .crypto
         )
-        
-        messages.append(message)
+
+        let post = Post(
+            id: UUID(),
+            author: analyst,
+            role: "Crypto Market Analyst",
+            content: generateCryptoAdvice(for: symbol),
+            timestamp: Date(),
+            isSponsored: true,
+            linkedInvestment: investment
+        )
+
+        posts.insert(post, at: 0)
+        saveState()
+        objectWillChange.send()
+    }
+
+    // MARK: - Notifications / Feedback
+    private func triggerIncomingStartupOpportunityFeedback() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+        AudioServicesPlaySystemSound(1007)
     }
     
     private func getCurrentPrice(for symbol: String) -> Double {
@@ -1977,7 +2020,8 @@ class GameState: ObservableObject {
             isSponsored: true,
             linkedMarketUpdate: marketUpdate
         )
-        addPost(post)
+        // Insert directly into feed (do not add to user's profile)
+        posts.insert(post, at: 0)
     }
     
     private func generateBusinessUpdateMessage(business: BusinessOpportunity, newMultiple: Double) -> String {
@@ -2023,6 +2067,7 @@ struct SavedGameState: Codable {
     let eventLog: [String]
     let posts: [Post]
     let userPosts: [Post]
+    let pendingUserPosts: [Post]?
     let player: Player
     let goal: Goal?
     let profileImage: String?

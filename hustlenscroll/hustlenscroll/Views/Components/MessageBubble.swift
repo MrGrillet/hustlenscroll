@@ -71,10 +71,7 @@ struct MessageBubble: View {
                                     switch opportunity.type {
                                     case .startup:
                                         Button {
-                                            // Update message status and add responses
-                                            gameState.handleOpportunityResponse(message: message, accepted: true)
-                                            
-                                            // Show business purchase view
+                                            // Show business purchase view (acceptance happens after payment selection)
                                             NotificationCenter.default.post(
                                                 name: NSNotification.Name("ShowBusinessPurchase"),
                                                 object: nil,

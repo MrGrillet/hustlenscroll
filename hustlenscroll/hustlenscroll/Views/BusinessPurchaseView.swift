@@ -87,109 +87,113 @@ struct BusinessPurchaseView: View {
                         .cornerRadius(12)
                     }
                     
-                    // Payment Options
-                    if canAfford {
-                        VStack(alignment: .leading, spacing: 15) {
-                            Text("Payment Options")
-                                .font(.headline)
-                            
-                            // Black Card (if eligible)
-                            if isBlackCardEligible {
-                                PaymentOptionRow(
-                                    title: "Black Card",
-                                    available: blackCardAvailableCredit,
-                                    color: .black
-                                )
-                                .onTapGesture {
-                                    handlePurchase(using: .blackCard)
-                                }
-                                .opacity(canAffordWithBlackCard ? 1 : 0.5)
-                                .disabled(!canAffordWithBlackCard)
-                            }
+                    // Payment Options (always visible, greyed out if not affordable)
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("Payment Options")
+                            .font(.headline)
 
-                            // Family Trust
-                            PaymentOptionRow(
-                                title: "Family Trust",
-                                available: gameState.familyTrustBalance,
-                                color: .purple
-                            )
-                            .onTapGesture {
-                                handlePurchase(using: .familyTrust)
-                            }
-                            .opacity(canAffordWithFamilyTrust ? 1 : 0.5)
-                            .disabled(!canAffordWithFamilyTrust)
-
-                            // Platinum Card (if eligible)
-                            if isPlatinumCardEligible {
-                                PaymentOptionRow(
-                                    title: "Platinum Card",
-                                    available: platinumCardAvailableCredit,
-                                    color: .gray
-                                )
-                                .onTapGesture {
-                                    handlePurchase(using: .platinumCard)
-                                }
-                                .opacity(canAffordWithPlatinumCard ? 1 : 0.5)
-                                .disabled(!canAffordWithPlatinumCard)
-                            }
-
-                            // Standard Credit Card
-                            PaymentOptionRow(
-                                title: "Credit Card",
-                                available: standardCardAvailableCredit,
-                                color: Color(uiColor: .systemGray5)
-                            )
-                            .onTapGesture {
-                                handlePurchase(using: .credit)
-                            }
-                            .opacity(canAffordWithCredit ? 1 : 0.5)
-                            .disabled(!canAffordWithCredit)
-
-                            // Checking Account
-                            PaymentOptionRow(
-                                title: "Checking Account",
-                                available: gameState.currentPlayer.bankBalance,
-                                color: Color(uiColor: .systemGray5)
-                            )
-                            .onTapGesture {
-                                handlePurchase(using: .bankAccount)
-                            }
-                            .opacity(canAffordWithBank ? 1 : 0.5)
-                            .disabled(!canAffordWithBank)
-
-                            // Savings Account
-                            PaymentOptionRow(
-                                title: "Savings Account",
-                                available: gameState.currentPlayer.savingsBalance,
-                                color: Color(uiColor: .systemGray5)
-                            )
-                            .onTapGesture {
-                                handlePurchase(using: .savings)
-                            }
-                            .opacity(canAffordWithSavings ? 1 : 0.5)
-                            .disabled(!canAffordWithSavings)
-
-                            // Reject Button
-                            Button(action: {
-                                // Get the original message from the game state
-                                if let originalMessage = gameState.messages.first(where: { message in
-                                    message.opportunity?.title == opportunity.title &&
-                                    message.opportunityStatus == .pending
-                                }) {
-                                    gameState.handleOpportunityResponse(message: originalMessage, accepted: false)
-                                }
-                                dismiss()
-                            }) {
-                                Text("Reject Opportunity")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.red)
-                                    .cornerRadius(10)
-                            }
-                            .padding(.top)
+                        if !canAfford {
+                            Text("You don't have enough funds in a single method to cover the setup cost. Options are disabled.")
+                                .font(.footnote)
+                                .foregroundColor(.gray)
                         }
+
+                        // Black Card (if eligible)
+                        if isBlackCardEligible {
+                            PaymentOptionRow(
+                                title: "Black Card",
+                                available: blackCardAvailableCredit,
+                                color: .black
+                            )
+                            .onTapGesture {
+                                if canAffordWithBlackCard { handlePurchase(using: .blackCard) }
+                            }
+                            .opacity(canAffordWithBlackCard ? 1 : 0.5)
+                            .disabled(!canAffordWithBlackCard)
+                        }
+
+                        // Family Trust
+                        PaymentOptionRow(
+                            title: "Family Trust",
+                            available: gameState.familyTrustBalance,
+                            color: .purple
+                        )
+                        .onTapGesture {
+                            if canAffordWithFamilyTrust { handlePurchase(using: .familyTrust) }
+                        }
+                        .opacity(canAffordWithFamilyTrust ? 1 : 0.5)
+                        .disabled(!canAffordWithFamilyTrust)
+
+                        // Platinum Card (if eligible)
+                        if isPlatinumCardEligible {
+                            PaymentOptionRow(
+                                title: "Platinum Card",
+                                available: platinumCardAvailableCredit,
+                                color: .gray
+                            )
+                            .onTapGesture {
+                                if canAffordWithPlatinumCard { handlePurchase(using: .platinumCard) }
+                            }
+                            .opacity(canAffordWithPlatinumCard ? 1 : 0.5)
+                            .disabled(!canAffordWithPlatinumCard)
+                        }
+
+                        // Standard Credit Card
+                        PaymentOptionRow(
+                            title: "Credit Card",
+                            available: standardCardAvailableCredit,
+                            color: Color(uiColor: .systemGray5)
+                        )
+                        .onTapGesture {
+                            if canAffordWithCredit { handlePurchase(using: .credit) }
+                        }
+                        .opacity(canAffordWithCredit ? 1 : 0.5)
+                        .disabled(!canAffordWithCredit)
+
+                        // Checking Account
+                        PaymentOptionRow(
+                            title: "Checking Account",
+                            available: gameState.currentPlayer.bankBalance,
+                            color: Color(uiColor: .systemGray5)
+                        )
+                        .onTapGesture {
+                            if canAffordWithBank { handlePurchase(using: .bankAccount) }
+                        }
+                        .opacity(canAffordWithBank ? 1 : 0.5)
+                        .disabled(!canAffordWithBank)
+
+                        // Savings Account
+                        PaymentOptionRow(
+                            title: "Savings Account",
+                            available: gameState.currentPlayer.savingsBalance,
+                            color: Color(uiColor: .systemGray5)
+                        )
+                        .onTapGesture {
+                            if canAffordWithSavings { handlePurchase(using: .savings) }
+                        }
+                        .opacity(canAffordWithSavings ? 1 : 0.5)
+                        .disabled(!canAffordWithSavings)
+
+                        // Reject Button
+                        Button(action: {
+                            // Get the original message from the game state
+                            if let originalMessage = gameState.messages.first(where: { message in
+                                message.opportunity?.title == opportunity.title &&
+                                message.opportunityStatus == .pending
+                            }) {
+                                gameState.handleOpportunityResponse(message: originalMessage, accepted: false)
+                            }
+                            dismiss()
+                        }) {
+                            Text("Reject Opportunity")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red)
+                                .cornerRadius(10)
+                        }
+                        .padding(.top)
                     }
                 }
                 .padding()
@@ -210,16 +214,14 @@ struct BusinessPurchaseView: View {
     }
     
     private func handlePurchase(using method: PaymentMethod) {
-        // Add user's acceptance message
-        let userMessage = Message(
-            senderId: opportunity.source == .partner ? "broker" : "founder",
-            senderName: gameState.currentPlayer.name,
-            senderRole: gameState.currentPlayer.role,
-            timestamp: Date(),
-            content: BusinessResponseMessages.getRandomMessage(BusinessResponseMessages.userAcceptanceMessages),
-            isRead: true
-        )
-        gameState.addMessageToThread(senderId: userMessage.senderId, message: userMessage)
+        // Mark the original offer accepted and add threaded responses
+        if let originalMessage = gameState.messages.first(where: { msg in
+            msg.opportunity?.id == (opportunity.originalOpportunityId ?? msg.opportunity?.id) &&
+            msg.opportunity?.type == .startup &&
+            msg.opportunityStatus == .pending
+        }) {
+            gameState.handleOpportunityResponse(message: originalMessage, accepted: true)
+        }
         
         // Process payment
         switch method {
@@ -240,22 +242,27 @@ struct BusinessPurchaseView: View {
         // Add the business
         gameState.acceptOpportunity(opportunity)
         
-        // Add accountant's confirmation
-        let accountantMessage = Message(
-            senderId: "accountant",
-            senderName: "Steven Johnson",
-            senderRole: "Accountant",
-            timestamp: Date().addingTimeInterval(60),
-            content: BusinessResponseMessages.getRandomMessage(
-                BusinessResponseMessages.accountantConfirmations,
-                replacements: [
-                    "company": opportunity.title,
-                    "id": String((opportunity.originalOpportunityId ?? opportunity.id).uuidString.prefix(8))
-                ]
-            ),
-            isRead: false
-        )
-        gameState.addMessageToThread(senderId: accountantMessage.senderId, message: accountantMessage)
+        // Add accountant's confirmation (threaded)
+        if let originalMessage = gameState.messages.first(where: { msg in
+            msg.opportunity?.id == (opportunity.originalOpportunityId ?? msg.opportunity?.id)
+        }) {
+            let accountantMessage = Message(
+                senderId: "accountant",
+                senderName: "Steven Johnson",
+                senderRole: "Accountant",
+                timestamp: Date().addingTimeInterval(60),
+                content: BusinessResponseMessages.getRandomMessage(
+                    BusinessResponseMessages.accountantConfirmations,
+                    replacements: [
+                        "company": opportunity.title,
+                        "id": String((opportunity.originalOpportunityId ?? opportunity.id).uuidString.prefix(8))
+                    ]
+                ),
+                isRead: false,
+                opportunityId: originalMessage.id
+            )
+            gameState.addMessageToThread(senderId: accountantMessage.senderId, message: accountantMessage)
+        }
         
         // Save state and update UI
         gameState.saveState()
