@@ -54,7 +54,7 @@ struct BankView: View {
                             .padding(.horizontal)
                         
                         // Black Card
-                        if isBlackCardEligible {
+                        if isBlackCardEligible && gameState.isOutOfRatRace {
                             NavigationLink(destination: BlackCardView()) {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Black Card")
@@ -74,6 +74,7 @@ struct BankView: View {
                         }
                         
                         // Family Trust Account
+                        if gameState.isOutOfRatRace {
                         NavigationLink(destination: FamilyTrustView()) {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Family Trust")
@@ -89,6 +90,7 @@ struct BankView: View {
                             .background(Color.purple.opacity(0.1))
                             .foregroundColor(.black)
                             .cornerRadius(10)
+                        }
                         }
                     }
                     .padding(.horizontal)

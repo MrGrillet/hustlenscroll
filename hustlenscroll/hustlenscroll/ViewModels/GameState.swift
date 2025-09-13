@@ -761,6 +761,10 @@ class GameState: ObservableObject {
         // Only add if not a duplicate
         if !isDuplicate {
             messages.append(message)
+            // Trigger feedback for important inbound messages (accountant or opportunity-linked)
+            if message.senderName != currentPlayer.name && (message.senderRole == "Accountant" || message.opportunity != nil) {
+                triggerIncomingStartupOpportunityFeedback()
+            }
             saveState()
             objectWillChange.send()
         }
@@ -788,9 +792,13 @@ class GameState: ObservableObject {
         if expired {
             // For expired opportunities, only add broker's message
             let brokerResponseId = UUID()
-            let now = Date()
-            // Ensure broker message is after the original but not in the future
-            let brokerTimestamp = min(max(baseTimestamp.addingTimeInterval(120), baseTimestamp.addingTimeInterval(1)), now)
+            // Find the latest timestamp already in this thread
+            let latestThreadTime = messages
+                .filter { ($0.opportunityId ?? $0.id) == message.id }
+                .map { $0.timestamp }
+                .max() ?? baseTimestamp
+            // Choose a strictly later timestamp (by a small epsilon)
+            let brokerTimestamp = max(latestThreadTime.addingTimeInterval(0.001), Date())
             let brokerMessage = Message(
                 id: brokerResponseId,
                 senderId: message.senderId,
@@ -806,11 +814,14 @@ class GameState: ObservableObject {
             print("  - Message ID: \(brokerResponseId)")
             print("  - Content: \(brokerMessage.content)")
         } else {
-            // Create user's response message with unique ID (1 minute after original)
+            // Create user's response message with unique ID and strictly increasing timestamp
             let userResponseId = UUID()
-            let now = Date()
-            // Ensure user reply is after original but not in the future
-            let userTimestamp = min(max(baseTimestamp.addingTimeInterval(60), baseTimestamp.addingTimeInterval(1)), now)
+            // Latest timestamp in this thread
+            let latestThreadTime = messages
+                .filter { ($0.opportunityId ?? $0.id) == message.id }
+                .map { $0.timestamp }
+                .max() ?? baseTimestamp
+            let userTimestamp = max(latestThreadTime.addingTimeInterval(0.001), Date())
             let userMessage = Message(
                 id: userResponseId,
                 senderId: message.senderId,  // Use the same senderId as the original message
@@ -832,8 +843,8 @@ class GameState: ObservableObject {
             
             // Create broker's response with unique ID (2 minutes after original)
             let brokerResponseId = UUID()
-            // Broker follows after user reply, but never in the future
-            let brokerTimestamp = min(max(userTimestamp.addingTimeInterval(5), baseTimestamp.addingTimeInterval(120)), now)
+            // Broker follows immediately after the user reply (small epsilon)
+            let brokerTimestamp = userTimestamp.addingTimeInterval(0.001)
             let brokerMessage = Message(
                 id: brokerResponseId,
                 senderId: message.senderId,  // Keep original sender's ID for thread
@@ -1758,13 +1769,11 @@ class GameState: ObservableObject {
         guard let role = Role.getRole(byTitle: currentPlayer.role) else { return 0 }
         var income = role.monthlySalary
         
-        // Add business income if applicable
-        if hasStartup {
-            income += startupRevenue - startupExpenses
+        // Add user's ownership share of all active businesses (treated as dividends)
+        let ownershipDividend = activeBusinesses.reduce(0.0) { partial, business in
+            partial + (business.monthlyCashflow * (business.revenueShare / 100.0))
         }
-        
-        // Add passive income from businesses
-        income += totalMonthlyBusinessIncome
+        income += ownershipDividend
         
         return income
     }
@@ -1786,6 +1795,10 @@ class GameState: ObservableObject {
     
     var monthlyCashflow: Double {
         monthlyIncome - monthlyExpenses
+    }
+    
+    var isOutOfRatRace: Bool {
+        monthlyIncome > monthlyExpenses
     }
     
     func setRole(_ role: String) {

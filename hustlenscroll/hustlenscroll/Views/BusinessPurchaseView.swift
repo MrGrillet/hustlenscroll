@@ -99,7 +99,7 @@ struct BusinessPurchaseView: View {
                         }
 
                         // Black Card (if eligible)
-                        if isBlackCardEligible {
+                        if isBlackCardEligible && gameState.isOutOfRatRace {
                             PaymentOptionRow(
                                 title: "Black Card",
                                 available: blackCardAvailableCredit,
@@ -113,16 +113,18 @@ struct BusinessPurchaseView: View {
                         }
 
                         // Family Trust
-                        PaymentOptionRow(
-                            title: "Family Trust",
-                            available: gameState.familyTrustBalance,
-                            color: .purple
-                        )
-                        .onTapGesture {
-                            if canAffordWithFamilyTrust { handlePurchase(using: .familyTrust) }
+                        if gameState.isOutOfRatRace {
+                            PaymentOptionRow(
+                                title: "Family Trust",
+                                available: gameState.familyTrustBalance,
+                                color: .purple
+                            )
+                            .onTapGesture {
+                                if canAffordWithFamilyTrust { handlePurchase(using: .familyTrust) }
+                            }
+                            .opacity(canAffordWithFamilyTrust ? 1 : 0.5)
+                            .disabled(!canAffordWithFamilyTrust)
                         }
-                        .opacity(canAffordWithFamilyTrust ? 1 : 0.5)
-                        .disabled(!canAffordWithFamilyTrust)
 
                         // Platinum Card (if eligible)
                         if isPlatinumCardEligible {
