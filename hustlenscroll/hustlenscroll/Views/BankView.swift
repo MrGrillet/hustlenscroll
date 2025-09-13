@@ -54,7 +54,7 @@ struct BankView: View {
                             .padding(.horizontal)
                         
                         // Black Card
-                        if isBlackCardEligible && gameState.isOutOfRatRace {
+                        if gameState.isOutOfRatRace {
                             NavigationLink(destination: BlackCardView()) {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("Black Card")

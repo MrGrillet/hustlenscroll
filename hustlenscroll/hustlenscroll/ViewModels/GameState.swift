@@ -55,6 +55,9 @@ class GameState: ObservableObject {
     // Feed refresh-based payday schedule
     @Published var refreshesSincePayday: Int = 0
     @Published var nextPaydayIn: Int = 3
+    // Stage / theme
+    @Published var hasLeveledUpToWealthStage: Bool = false
+    @Published var prefersDarkModeAfterLevelUp: Bool = true
     
     var initialMessages: [Message] {
         // Create a fixed date for initial messages - Jan 1, 2024
@@ -153,6 +156,8 @@ class GameState: ObservableObject {
             self.familyTrustBalance = decoded.familyTrustBalance
             self.refreshesSincePayday = decoded.refreshesSincePayday ?? 0
             self.nextPaydayIn = decoded.nextPaydayIn ?? Int.random(in: 3...6)
+            self.hasLeveledUpToWealthStage = decoded.hasLeveledUpToWealthStage ?? false
+            self.prefersDarkModeAfterLevelUp = decoded.prefersDarkModeAfterLevelUp ?? true
             
             // Clean up any duplicate messages
             removeDuplicateMessages()
@@ -256,7 +261,9 @@ class GameState: ObservableObject {
             platinumCardBalance: platinumCardBalance,
             familyTrustBalance: familyTrustBalance,
             refreshesSincePayday: refreshesSincePayday,
-            nextPaydayIn: nextPaydayIn
+            nextPaydayIn: nextPaydayIn,
+            hasLeveledUpToWealthStage: hasLeveledUpToWealthStage,
+            prefersDarkModeAfterLevelUp: prefersDarkModeAfterLevelUp
         )
         
         if let encoded = try? JSONEncoder().encode(state) {
@@ -1070,6 +1077,32 @@ class GameState: ObservableObject {
             handlePayday()
             refreshesSincePayday = 0
             nextPaydayIn = Int.random(in: 3...6)
+            // Level up if out of rat race and not already leveled up
+            if isOutOfRatRace && !hasLeveledUpToWealthStage {
+                hasLeveledUpToWealthStage = true
+                // Send mentor + accountant onboarding messages
+                let mentorMsg = Message(
+                    senderId: "mentor",
+                    senderName: "David Chen",
+                    senderRole: "Startup Advisor",
+                    timestamp: Date(),
+                    content: "Congrats! You've left the rat race. Welcome to the Wealth Management stage. Focus on land, structures, and diversification.",
+                    isRead: false
+                )
+                messages.append(mentorMsg)
+                let accountantMsg = Message(
+                    senderId: "accountant",
+                    senderName: "Steven Johnson",
+                    senderRole: "Accountant",
+                    timestamp: Date(),
+                    content: "Now that you're cashflow positive, we can optimize with Family Trust and Holding Companies. I'll send options shortly.",
+                    isRead: false
+                )
+                messages.append(accountantMsg)
+                triggerIncomingStartupOpportunityFeedback()
+                saveState()
+                objectWillChange.send()
+            }
         }
 
         // Shuffle non-pending content to simulate a random feed
@@ -2180,4 +2213,6 @@ struct SavedGameState: Codable {
     let familyTrustBalance: Double
     let refreshesSincePayday: Int?
     let nextPaydayIn: Int?
+    let hasLeveledUpToWealthStage: Bool?
+    let prefersDarkModeAfterLevelUp: Bool?
 } 

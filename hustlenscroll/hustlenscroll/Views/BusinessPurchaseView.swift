@@ -99,7 +99,7 @@ struct BusinessPurchaseView: View {
                         }
 
                         // Black Card (if eligible)
-                        if isBlackCardEligible && gameState.isOutOfRatRace {
+                        if gameState.isOutOfRatRace {
                             PaymentOptionRow(
                                 title: "Black Card",
                                 available: blackCardAvailableCredit,
